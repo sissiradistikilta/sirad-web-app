@@ -1,0 +1,11 @@
+.Options {
+  display: flex;
+  flex-direction: column;
+}
+
+@media screen and (min-width: 800px) {
+  .Options {
+    flex-direction: row;
+    gap: 20px;
+  }
+}
