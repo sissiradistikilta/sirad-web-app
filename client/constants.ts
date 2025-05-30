@@ -49,15 +49,15 @@ export const MORSE_CODES_MAP = new Map(Object.entries(MORSE_CODES));
 export const CHARACTER_SETS: Option[] = [
   {
     label: "Aakkoset",
-    value: "ABCDEFGHIJKLMNOPQRSTUVXYZ"
+    value: "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
   },
   {
     label: "Aakkoset ja numerot",
-    value: "ABCDEFGHIJKLMNOPQRSTUVXYZ0123456789"
+    value: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
   },
   {
     label: "Aakkoset, ääkköset ja numerot",
-    value: "ABCDEFGHIJKLMNOPQRSTUVXYZÅÄÖ0123456789"
+    value: "ABCDEFGHIJKLMNOPQRSTUVWXYZÅÄÖ0123456789"
   }
 ];
 
