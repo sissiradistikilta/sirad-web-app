@@ -7,6 +7,8 @@
     "npm": "10.9.x"
   },
   "scripts": {
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d dist",
     "prestart": "npm run build",
     "start": "ts-node --project ./tsconfig.node.json ./server/index.ts",
     "dev": "concurrently \"npm run dev:client\" \"npm run dev:server\"",
@@ -47,6 +49,7 @@
     "dotenv-cli": "8.0.0",
     "eslint": "9.23.0",
     "eslint-plugin-react": "7.37.4",
+    "gh-pages": "^6.3.0",
     "globals": "16.0.0",
     "husky": "9.1.7",
     "jsdom": "26.0.0",
