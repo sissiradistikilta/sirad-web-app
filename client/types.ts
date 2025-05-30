@@ -1,4 +1,4 @@
-import { LENGTHS, MORSE_CODES, SPEEDS } from "./constants";
+import { MORSE_CODES } from "./constants";
 
 export interface Option {
   label: string;

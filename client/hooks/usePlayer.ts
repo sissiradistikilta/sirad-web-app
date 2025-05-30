@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { MORSE_CODES_MAP } from "../constants";
 import { MorseCharacter } from "../types";
@@ -32,7 +32,7 @@ const usePlayer = (speed: number, message: MorseCharacter[]) => {
     }
 
     audioCtx.current = new window.AudioContext();
-    let silence = audioCtx.current.createBufferSource();
+    const silence = audioCtx.current.createBufferSource();
     silence.buffer = audioCtx.current.createBuffer(1, 22050, 22050);
     silence.connect(audioCtx.current.destination);
     silence.start();
@@ -57,7 +57,7 @@ const usePlayer = (speed: number, message: MorseCharacter[]) => {
     async (letter: MorseCharacter, skipEndPause = false) => {
       const morse = MORSE_CODES_MAP.get(letter);
       if (!morse) return;
-      for (let char of morse) {
+      for (const char of morse) {
         if (stopRequested.current) return;
         if (char === ".") {
           playBeep(dotLength.current);
