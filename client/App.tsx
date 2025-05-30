@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from "react";
 
 import { Button, Options, Results, Select } from "./components";
-import { CHARACTER_SETS, LENGTHS, MORSE_CODES_MAP, SPEEDS } from "./constants";
+import { BASE_CHARACTERS, LENGTHS, MORSE_CODES_MAP, SPECIAL_CHARACTER_SETS, SPEEDS } from "./constants";
 import { usePlayer } from "./hooks";
 import { MorseCharacter } from "./types";
 
@@ -9,18 +9,34 @@ import "./App.css";
 
 function App() {
   const [speed, setSpeed] = useState(60);
-  const [characters, setCharacters] = useState(CHARACTER_SETS[0].value);
-  const [length, setLength] = useState(250);
+  const [specialCharacters, setSpecialCharacters] = useState(SPECIAL_CHARACTER_SETS[0].value);
+  const [length, setLength] = useState(125);
   const [message, setMessage] = useState<MorseCharacter[]>([]);
 
   const { currentGroup, numGroups, playing, startPlayback, stopPlayback, stopped } = usePlayer(speed, message);
 
   const generateNewSeries = useCallback(() => {
+
     const nextMessage = Array.from({ length }, () =>
-      characters.charAt(Math.floor(Math.random() * characters.length))
-    ).filter((character): character is MorseCharacter => Boolean(MORSE_CODES_MAP.get(character)));
-    setMessage(nextMessage);
-  }, [characters, length]);
+      BASE_CHARACTERS.charAt(Math.floor(Math.random() * BASE_CHARACTERS.length))
+    );
+
+    const specialSet = new Set(specialCharacters);
+    const specialCount = Math.floor(length / 125);
+    const usedIndexes = new Set();
+    for (let i = 0; i < specialCount; i++) {
+      for (const specialCharacter of specialCharacters) {
+        let index;
+        do {
+          index = Math.floor(Math.random() * length);
+        } while (usedIndexes.has(index) || specialSet.has(message[index]));
+        nextMessage[index] = specialCharacter;
+        usedIndexes.add(index);
+      }
+    }
+
+    setMessage(nextMessage.filter((character): character is MorseCharacter => Boolean(MORSE_CODES_MAP.get(character))));
+  }, [specialCharacters, length]);
 
   return (
     <div className="App">
@@ -38,11 +54,11 @@ function App() {
           selected={String(speed)}
         />
         <Select
-          id="characters"
-          title="Merkistö"
-          onChange={(value) => setCharacters(value)}
-          options={CHARACTER_SETS}
-          selected={String(characters)}
+          id="specialcharacters"
+          title="Erikoismerkit"
+          onChange={(value) => setSpecialCharacters(value)}
+          options={SPECIAL_CHARACTER_SETS}
+          selected={String(specialCharacters)}
         />
         <Select
           id="length"
