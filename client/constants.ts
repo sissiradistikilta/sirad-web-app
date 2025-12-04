@@ -47,20 +47,26 @@ export const MORSE_CODES = {
 
 export const MORSE_CODES_MAP = new Map(Object.entries(MORSE_CODES));
 
-export const BASE_CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+export const ALPHABETS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+export const NUMBERS = "0123456789";
+export const UMLAUTS = "ÅÄÖÜ";
 
-export const SPECIAL_CHARACTER_SETS: Option[] = [
+export const CHARACTER_SETS: Option[] = [
   {
-    label: "Ei erikoismerkkejä",
-    value: ""
+    label: "Aakkoset",
+    value: ALPHABETS
   },
   {
-    label: "Numerot",
-    value: "0123456789"
+    label: "Aakkoset ja numerot",
+    value: ALPHABETS + NUMBERS
   },
   {
-    label: "Ääkköset ja numerot",
-    value: "ÅÄÖÜ0123456789"
+    label: "Aakkoset, numerot ja ääkköset",
+    value: ALPHABETS + NUMBERS + UMLAUTS
+  },
+  {
+    label: "Pelkät numerot",
+    value: NUMBERS
   }
 ];
 

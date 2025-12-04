@@ -1,30 +1,45 @@
 import React, { useCallback, useState } from "react";
 
 import { Button, Options, Results, Select } from "./components";
-import { BASE_CHARACTERS, LENGTHS, MORSE_CODES_MAP, SPECIAL_CHARACTER_SETS, SPEEDS } from "./constants";
+import { ALPHABETS, LENGTHS, CHARACTER_SETS, SPEEDS, NUMBERS } from "./constants";
 import { usePlayer } from "./hooks";
 import { MorseCharacter } from "./types";
 
 import "./App.css";
+import { filterToMorse } from "./utils";
 
 function App() {
   const [speed, setSpeed] = useState(60);
-  const [specialCharacters, setSpecialCharacters] = useState(SPECIAL_CHARACTER_SETS[0].value);
+  const [characters, setCharacters] = useState(CHARACTER_SETS[0].value);
   const [length, setLength] = useState(125);
   const [message, setMessage] = useState<MorseCharacter[]>([]);
 
   const { currentGroup, numGroups, playing, startPlayback, stopPlayback, stopped } = usePlayer(speed, message);
 
   const generateNewSeries = useCallback(() => {
-    const nextMessage = Array.from({ length }, () =>
-      BASE_CHARACTERS.charAt(Math.floor(Math.random() * BASE_CHARACTERS.length))
-    );
+    console.log("Generating new series...", characters);
+    // In case it's numbers only, we'll make message from numbers
+    if (characters === NUMBERS) {
+      const nextMessage = Array.from({ length }, () => NUMBERS.charAt(Math.floor(Math.random() * NUMBERS.length)));
+      setMessage(nextMessage.filter(filterToMorse));
+      return;
+    }
 
-    const specialSet = new Set(specialCharacters);
+    // Otherwise, we start with alphabets
+    const nextMessage = Array.from({ length }, () => ALPHABETS.charAt(Math.floor(Math.random() * ALPHABETS.length)));
+
+    // If it's only alphabets, we're done
+    if (characters === ALPHABETS) {
+      setMessage(nextMessage.filter(filterToMorse));
+      return;
+    }
+
+    // Otherwise, we need to insert special characters
+    const specialSet = new Set(characters.substring(ALPHABETS.length));
     const specialCount = Math.floor(length / 125);
     const usedIndexes = new Set();
     for (let i = 0; i < specialCount; i++) {
-      for (const specialCharacter of specialCharacters) {
+      for (const specialCharacter of characters) {
         let index;
         do {
           index = Math.floor(Math.random() * length);
@@ -34,8 +49,8 @@ function App() {
       }
     }
 
-    setMessage(nextMessage.filter((character): character is MorseCharacter => Boolean(MORSE_CODES_MAP.get(character))));
-  }, [specialCharacters, length]);
+    setMessage(nextMessage.filter(filterToMorse));
+  }, [characters, length]);
 
   return (
     <div className="App">
@@ -53,11 +68,11 @@ function App() {
           selected={String(speed)}
         />
         <Select
-          id="specialcharacters"
+          id="characters"
           title="Erikoismerkit"
-          onChange={(value) => setSpecialCharacters(value)}
-          options={SPECIAL_CHARACTER_SETS}
-          selected={String(specialCharacters)}
+          onChange={(value) => setCharacters(value)}
+          options={CHARACTER_SETS}
+          selected={String(characters)}
         />
         <Select
           id="length"
