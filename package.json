@@ -16,6 +16,7 @@
     "dev:server": "ts-node-dev --project ./tsconfig.node.json ./server/index.ts",
     "clean": "rimraf ./dist",
     "build": "vite build",
+    "postbuild": "echo \"cw.sirad.fi\" > dist/CNAME",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
