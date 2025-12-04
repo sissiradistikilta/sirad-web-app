@@ -1,4 +1,4 @@
-import { vi } from "vitest"
+import { vi } from "vitest";
 
 class AudioContextMock {
   createOscillator() {
@@ -7,13 +7,13 @@ class AudioContextMock {
       start: vi.fn(),
       stop: vi.fn(),
       frequency: { setValueAtTime: vi.fn() },
-      type: "",
+      type: ""
     };
   }
   createGain() {
     return {
       connect: vi.fn(),
-      gain: { setValueAtTime: vi.fn() },
+      gain: { setValueAtTime: vi.fn() }
     };
   }
   createAnalyser() {
@@ -26,4 +26,4 @@ class AudioContextMock {
   currentTime = 0;
 }
 
-globalThis.AudioContext = AudioContextMock as any;
+(globalThis as unknown as { AudioContext: typeof AudioContextMock }).AudioContext = AudioContextMock;
