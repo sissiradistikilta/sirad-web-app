@@ -16,7 +16,6 @@ function App() {
   const { currentGroup, numGroups, playing, startPlayback, stopPlayback, stopped } = usePlayer(speed, message);
 
   const generateNewSeries = useCallback(() => {
-
     const nextMessage = Array.from({ length }, () =>
       BASE_CHARACTERS.charAt(Math.floor(Math.random() * BASE_CHARACTERS.length))
     );
