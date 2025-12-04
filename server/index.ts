@@ -27,8 +27,8 @@ if (devMode) {
   // Server static files
   app.use(express.static(root, { index: false }));
 
-  // SPA controller (e.g. serve index.html for all paths)
-  app.get("*", (_req, res) => {
+  // SPA controller (e.g. serve index.html for all unknown paths)
+  app.use((req, res) => {
     res.sendFile(path.join(root, "index.html"));
   });
 }

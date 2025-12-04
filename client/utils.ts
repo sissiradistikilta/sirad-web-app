@@ -1,3 +1,6 @@
+import { MORSE_CODES_MAP } from "./constants";
+import { MorseCharacter } from "./types";
+
 export function sleep(time: number) {
   return new Promise((resolve) => setTimeout(resolve, time));
 }
@@ -16,4 +19,8 @@ export function chunkArray<T>(arr: Array<T>, chunkSize: number) {
     result.push(arr.slice(i, i + chunkSize));
   }
   return result;
+}
+
+export function filterToMorse(character: string): character is MorseCharacter {
+  return Boolean(MORSE_CODES_MAP.get(character));
 }
