@@ -53,19 +53,23 @@ export const UMLAUTS = "ÅÄÖÜ";
 
 export const CHARACTER_SETS: Option[] = [
   {
-    label: "Aakkoset",
+    label: "Aakkoset (A-Z)",
+    shortLabel: "A-Z",
     value: ALPHABETS
   },
   {
-    label: "Aakkoset ja numerot",
+    label: "Aakkoset ja numerot (A-Z, 0-9)",
+    shortLabel: "A-Z, 0-9",
     value: ALPHABETS + NUMBERS
   },
   {
-    label: "Aakkoset, numerot ja ääkköset",
+    label: "Aakkoset, numerot ja ääkköset (A-Z, 0-9, ÅÄÖÜ)",
+    shortLabel: "A-Z, 0-9, ÅÄÖÜ",
     value: ALPHABETS + NUMBERS + UMLAUTS
   },
   {
-    label: "Pelkät numerot",
+    label: "Pelkät numerot (0-9)",
+    shortLabel: "0-9",
     value: NUMBERS
   }
 ];
