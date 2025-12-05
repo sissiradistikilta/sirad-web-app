@@ -4,11 +4,19 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
+process.env.BASE_HREF ??= "/";
+if (!process.env.BASE_HREF.endsWith("/")) {
+  process.env.BASE_HREF += "/";
+}
+
 // https://vitejs.dev/config/
 export default () =>
   defineConfig({
-    plugins: [react()],
+    root: "client",
+    base: process.env.BASE_HREF,
+    plugins: [react({})],
     build: {
+      outDir: "../dist",
       assetsInlineLimit: 0,
       rollupOptions: {
         output: {
