@@ -1,13 +1,5 @@
-/// <reference types="vitest" />
-/// <reference types="vite/client" />
-
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-
-process.env.BASE_HREF ??= "/";
-if (!process.env.BASE_HREF.endsWith("/")) {
-  process.env.BASE_HREF += "/";
-}
 
 // https://vitejs.dev/config/
 export default () =>
@@ -32,17 +24,6 @@ export default () =>
       strictPort: true,
       proxy: {
         "/hello": "http://localhost:4001"
-      }
-    },
-    test: {
-      globals: true,
-      environment: "jsdom",
-      setupFiles: "./test/setup.ts",
-      css: false,
-      environmentOptions: {
-        jsdom: {
-          resources: "usable"
-        }
       }
     }
   });

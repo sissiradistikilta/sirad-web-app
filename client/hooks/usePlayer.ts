@@ -22,6 +22,10 @@ const usePlayer = (speed: number, message: MorseCharacter[]) => {
   }, [message]);
 
   useEffect(() => {
+    if (playing) setCurrentGroup(0);
+  }, [playing]);
+
+  useEffect(() => {
     dotLength.current = getDotLength(speed);
     lineLength.current = getLineLength(speed);
   }, [speed]);
