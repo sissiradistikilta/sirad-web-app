@@ -1,6 +1,75 @@
+@font-face {
+  font-family: "Digital 7 Mono";
+  src: url("/fonts/digital7_mono_italic.eot");
+  src:
+    url("/fonts/digital7_mono_italic.eot?#iefix") format("embedded-opentype"),
+    url("/fonts/digital7_mono_italic.woff2") format("woff2"),
+    url("/fonts/digital7_mono_italic.woff") format("woff"),
+    url("/fonts/digital7_mono_italic.ttf") format("truetype");
+  font-weight: normal;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Digital 7 Mono";
+  src: url("/fonts/digital7_mono.eot");
+  src:
+    url("/fonts/digital7_mono.eot?#iefix") format("embedded-opentype"),
+    url("/fonts/digital7_mono.woff2") format("woff2"),
+    url("/fonts/digital7_mono.woff") format("woff"),
+    url("/fonts/digital7_mono.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Digital 7";
+  src: url("/fonts/digital7_italic.eot");
+  src:
+    url("/fonts/digital7_italic.eot?#iefix") format("embedded-opentype"),
+    url("/fonts/digital7_italic.woff2") format("woff2"),
+    url("/fonts/digital7_italic.woff") format("woff"),
+    url("/fonts/digital7_italic.ttf") format("truetype");
+  font-weight: normal;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Digital 7";
+  src: url("/fonts/digital7.eot");
+  src:
+    url("/fonts/digital7.eot?#iefix") format("embedded-opentype"),
+    url("/fonts/digital7.woff2") format("woff2"),
+    url("/fonts/digital7.woff") format("woff"),
+    url("/fonts/digital7.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+html {
+  box-sizing: border-box;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: inherit;
+}
+
 body {
-  font-family: Arial, sans-serif;
+  font-family: "Courier New", "Consolas", monospace;
   padding: 0;
   margin: 0 auto;
   max-width: 1200px;
+  background-image: url("/background.jpg");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  min-height: 100vh;
+  width: 100vw;
+  overflow-x: hidden;
 }
