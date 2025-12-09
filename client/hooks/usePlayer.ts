@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { MORSE_CODES_MAP } from "../constants";
 import { MorseCharacter } from "../types";
@@ -6,14 +6,21 @@ import { getDotLength, getLineLength, sleep } from "../utils";
 
 import useLetterChunks from "./useLetterChunks";
 
-const usePlayer = (speed: number, message: MorseCharacter[]) => {
+const usePlayer = (characterSpeed: number, effectiveSpeed: number, message: MorseCharacter[]) => {
   const audioCtx = useRef<AudioContext>(new window.AudioContext());
   const stopRequested = useRef(false);
   const [playing, setPlaying] = useState(false);
   const [stopped, setStopped] = useState(false);
   const [currentGroup, setCurrentGroup] = useState(0);
-  const dotLength = useRef(getDotLength(speed));
-  const lineLength = useRef(getLineLength(speed));
+  const dotLength = useRef(getDotLength(characterSpeed));
+  const lineLength = useRef(getLineLength(characterSpeed));
+  const farnsworthFactor = useMemo(() => {
+    // Farnsworthia käytetään vain jos effectiveSpeed < characterSpeed ja effectiveSpeed > 0
+    if (effectiveSpeed > 0 && effectiveSpeed < characterSpeed) {
+      return characterSpeed / effectiveSpeed;
+    }
+    return 1;
+  }, [characterSpeed, effectiveSpeed]);
 
   const letterChunks = useLetterChunks(message);
 
@@ -22,9 +29,9 @@ const usePlayer = (speed: number, message: MorseCharacter[]) => {
   }, [message]);
 
   useEffect(() => {
-    dotLength.current = getDotLength(speed);
-    lineLength.current = getLineLength(speed);
-  }, [speed]);
+    dotLength.current = getDotLength(characterSpeed);
+    lineLength.current = getLineLength(characterSpeed);
+  }, [characterSpeed]);
 
   const oscillatorRef = useRef<OscillatorNode | null>(null);
   const gainNodeRef = useRef<GainNode | null>(null);
@@ -144,13 +151,15 @@ const usePlayer = (speed: number, message: MorseCharacter[]) => {
         } else if (char === "-") {
           await playBeep(lineLength.current);
         }
+        // Don't use farnsworth for intra-character pauses
         await playSilence(dotLength.current);
       }
       if (!skipEndPause) {
-        await playSilence(lineLength.current);
+        // Farnsworthia is used for inter-character pauses
+        await playSilence(lineLength.current * farnsworthFactor);
       }
     },
-    [playBeep, playSilence]
+    [playBeep, playSilence, farnsworthFactor]
   );
 
   const stopPlayback = useCallback(async () => {
@@ -174,7 +183,7 @@ const usePlayer = (speed: number, message: MorseCharacter[]) => {
       await playMorseSequence("=");
     }
 
-    await sleep(lineLength.current);
+    await sleep(lineLength.current * farnsworthFactor);
 
     for (let i = 0; i < letterChunks.length; i++) {
       setCurrentGroup(i + 1);
@@ -182,7 +191,7 @@ const usePlayer = (speed: number, message: MorseCharacter[]) => {
       for (const letter of letterChunks[i]) {
         await playMorseSequence(letter);
       }
-      await playSilence(lineLength.current);
+      await playSilence(lineLength.current * farnsworthFactor);
     }
 
     await playMorseSequence("+");
@@ -190,7 +199,7 @@ const usePlayer = (speed: number, message: MorseCharacter[]) => {
     await playMorseSequence("V", true);
     await playMorseSequence("A", true);
     stopPlayback();
-  }, [letterChunks, playMorseSequence, stopPlayback, startOscillator, playSilence]);
+  }, [letterChunks, playMorseSequence, stopPlayback, startOscillator, playSilence, farnsworthFactor]);
 
   useEffect(() => {
     return () => {
