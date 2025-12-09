@@ -1,23 +1,26 @@
 import React, { useCallback, useState } from "react";
 
-import { Button, Options, Results, Select } from "./components";
+import { Button, Results, Select } from "./components";
 import { ALPHABETS, LENGTHS, CHARACTER_SETS, SPEEDS, NUMBERS } from "./constants";
 import { usePlayer } from "./hooks";
 import { MorseCharacter } from "./types";
 
 import "./App.css";
 import { filterToMorse } from "./utils";
+import Logo from "./components/Logo";
+import Lightbox from "./components/Lightbox";
 
 function App() {
   const [speed, setSpeed] = useState(60);
   const [characters, setCharacters] = useState(CHARACTER_SETS[0].value);
   const [length, setLength] = useState(125);
   const [message, setMessage] = useState<MorseCharacter[]>([]);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const { currentGroup, numGroups, playing, startPlayback, stopPlayback, stopped } = usePlayer(speed, message);
 
   const generateNewSeries = useCallback(() => {
-    console.log("Generating new series...", characters);
+    stopPlayback();
     // In case it's numbers only, we'll make message from numbers
     if (characters === NUMBERS) {
       const nextMessage = Array.from({ length }, () => NUMBERS.charAt(Math.floor(Math.random() * NUMBERS.length)));
@@ -50,26 +53,65 @@ function App() {
     }
 
     setMessage(nextMessage.filter(filterToMorse));
-  }, [characters, length]);
+  }, [characters, length, stopPlayback]);
 
   return (
     <div className="App">
-      <h1>SiRad Web</h1>
-      <p>Harjoittele sähkötystä tietokoneellasi tai puhelimellasi.</p>
-      <Options>
+      <div className="App-header">
+        <div className="App-logo">
+          <Logo />
+          <h1 className="App-logo-title">SiRad Web</h1>
+        </div>
+        <div className="App-maincol">
+          <div className="App-buttons">
+            <Button
+              disabled={playing}
+              onClick={() => setSettingsOpen(true)}
+              lcd={[
+                `${speed.toString()} cpm`,
+                CHARACTER_SETS.find((o) => o.value === characters)?.shortLabel,
+                `${length} (${Math.round(length / 5)})`
+              ].join(" * ")}
+            >
+              Asetukset
+            </Button>
+            <Button disabled={playing} onClick={generateNewSeries}>
+              Uusi sarja
+            </Button>
+            <Button disabled={playing || message.length === 0} onClick={startPlayback}>
+              Toista
+            </Button>
+            <Button disabled={!playing} onClick={stopPlayback}>
+              Pysäytä
+            </Button>
+          </div>
+        </div>
+      </div>
+      <div className="App-content">
+        {message.length === 0 && <p>Harjoittele sähkötystä tietokoneellasi tai puhelimellasi.</p>}
+        {!playing && !stopped && message.length > 0 && <p>Sarja valmis toistettavaksi.</p>}
+        {playing && !stopped && message.length > 0 && (
+          <p>
+            Toistetaan sarjaa {currentGroup} / {numGroups} ...
+          </p>
+        )}
+        {!playing && stopped && message.length > 0 && <Results message={message} />}
+      </div>
+      <Lightbox open={settingsOpen} onClose={() => setSettingsOpen(false)} title="Asetukset">
         <Select
           id="speed"
           title="Nopeus"
           onChange={(value) => setSpeed(Number(value))}
           options={SPEEDS.map((value) => ({
-            label: `${value} merkkiä/min`,
+            label: `${value} merkkiä minuutissa`,
+            shortLabel: `${value} cpm`,
             value: String(value)
           }))}
           selected={String(speed)}
         />
         <Select
           id="characters"
-          title="Erikoismerkit"
+          title="Merkit"
           onChange={(value) => setCharacters(value)}
           options={CHARACTER_SETS}
           selected={String(characters)}
@@ -79,28 +121,13 @@ function App() {
           title="Pituus"
           onChange={(value) => setLength(Number(value))}
           options={LENGTHS.map((value) => ({
-            label: `${value} merkkiä (${Math.round(value / 5)} ryhmää)`,
+            label: `${value} (${Math.round(value / 5)} ryhmää)`,
+            shortLabel: `${value} (${Math.round(value / 5)})`,
             value: String(value)
           }))}
           selected={String(length)}
         />
-      </Options>
-      <Button disabled={playing} onClick={generateNewSeries}>
-        Uusi sarja
-      </Button>
-      <Button disabled={playing || message.length === 0} onClick={startPlayback}>
-        Toista
-      </Button>
-      <Button disabled={!playing} onClick={stopPlayback}>
-        Pysäytä
-      </Button>
-      {!playing && !stopped && message.length > 0 && <p>Sarja valmis toistettavaksi.</p>}
-      {playing && !stopped && message.length > 0 && (
-        <p>
-          Toistetaan sarjaa {currentGroup} / {numGroups} ...
-        </p>
-      )}
-      {!playing && stopped && message.length > 0 && <Results message={message} />}
+      </Lightbox>
     </div>
   );
 }
