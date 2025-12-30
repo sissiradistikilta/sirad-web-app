@@ -9,15 +9,19 @@ import "./App.css";
 import { filterToMorse } from "./utils";
 
 function App() {
-  const [speed, setSpeed] = useState(60);
+  const [characterSpeed, setCharacterSpeed] = useState(60);
+  const [effectiveSpeed, setEffectiveSpeed] = useState(0);
   const [characters, setCharacters] = useState(CHARACTER_SETS[0].value);
   const [length, setLength] = useState(125);
   const [message, setMessage] = useState<MorseCharacter[]>([]);
 
-  const { currentGroup, numGroups, playing, startPlayback, stopPlayback, stopped } = usePlayer(speed, message);
+  const { currentGroup, numGroups, playing, startPlayback, stopPlayback, stopped } = usePlayer(
+    characterSpeed,
+    effectiveSpeed,
+    message
+  );
 
   const generateNewSeries = useCallback(() => {
-    console.log("Generating new series...", characters);
     // In case it's numbers only, we'll make message from numbers
     if (characters === NUMBERS) {
       const nextMessage = Array.from({ length }, () => NUMBERS.charAt(Math.floor(Math.random() * NUMBERS.length)));
@@ -58,18 +62,39 @@ function App() {
       <p>Harjoittele sähkötystä tietokoneellasi tai puhelimellasi.</p>
       <Options>
         <Select
-          id="speed"
-          title="Nopeus"
-          onChange={(value) => setSpeed(Number(value))}
+          disabled={playing}
+          id="characterSpeed"
+          title="Merkkien nopeus"
+          onChange={(value) => setCharacterSpeed(Number(value))}
           options={SPEEDS.map((value) => ({
             label: `${value} merkkiä/min`,
             value: String(value)
           }))}
-          selected={String(speed)}
+          selected={String(characterSpeed)}
         />
         <Select
+          disabled={playing}
+          id="effectiveSpeed"
+          title="Tehollinen nopeus"
+          onChange={(value) => setEffectiveSpeed(Number(value))}
+          options={[
+            {
+              label: "Sama kuin merkkien nopeus",
+              value: "0"
+            },
+            ...SPEEDS.map((value) => ({
+              label: `${value} merkkiä/min`,
+              value: String(value)
+            }))
+          ]}
+          selected={String(effectiveSpeed)}
+        />
+      </Options>
+      <Options>
+        <Select
+          disabled={playing}
           id="characters"
-          title="Erikoismerkit"
+          title="Merkit"
           onChange={(value) => setCharacters(value)}
           options={CHARACTER_SETS}
           selected={String(characters)}
