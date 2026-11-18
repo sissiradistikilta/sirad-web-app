@@ -1,7 +1,6 @@
-/// <reference types="vitest" />
-/// <reference types="vite/client" />
+import { fileURLToPath } from "node:url";
 
-import { defineConfig } from "vite";
+import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 
 process.env.BASE_HREF ??= "/";
@@ -37,7 +36,7 @@ export default () =>
     test: {
       globals: true,
       environment: "jsdom",
-      setupFiles: "./test/setup.ts",
+      setupFiles: fileURLToPath(new URL("./test/setup.ts", import.meta.url)),
       css: false,
       environmentOptions: {
         jsdom: {
