@@ -84,6 +84,11 @@ describe("buildTimeline", () => {
     expect(timeline.events.at(-1)?.end).toBe(timeline.duration);
   });
 
+  it("gives the start time of each character", () => {
+    const timeline = buildTimeline([[".", "-"], [".."]], TIMING);
+    expect(timeline.characterStarts).toEqual([0, 1 + 3, 1 + 3 + 3 + 7]);
+  });
+
   it("gives the start time of each word", () => {
     const timeline = buildTimeline([[".", "."], ["-"], ["."]], TIMING);
     expect(timeline.wordStarts).toEqual([0, 5 + 7, 5 + 7 + 3 + 7]);
@@ -122,6 +127,16 @@ describe("buildMessageTimeline", () => {
     expect(timeline.groupStarts[0]).toBeCloseTo(prelude * unit, 9);
     expect(timeline.groupStarts[1]).toBeCloseTo((prelude + 1 + 7) * unit, 9);
     expect(timeline.groupStarts[2]).toBeCloseTo((prelude + 1 + 7 + 3 + 7) * unit, 9);
+  });
+
+  it("gives the start time of each character of the message, without the start and the end of the message", () => {
+    const timeline = buildMessageTimeline([["E", "T"], ["E"]], 60);
+    const prelude = 3 * 13 + 2 * 3 + 7;
+    expect(timeline.messageCharacterStarts).toHaveLength(3);
+    expect(timeline.messageCharacterStarts[0]).toBeCloseTo(prelude * unit, 9);
+    expect(timeline.messageCharacterStarts[1]).toBeCloseTo((prelude + 1 + 3) * unit, 9);
+    expect(timeline.messageCharacterStarts[2]).toBeCloseTo((prelude + 1 + 3 + 3 + 7) * unit, 9);
+    expect(timeline.messageCharacterStarts[0]).toBe(timeline.groupStarts[0]);
   });
 
   it("only stretches the gaps between characters and groups with Farnsworth timing", () => {

@@ -1,0 +1,61 @@
+.AnswerInput {
+  position: relative;
+  margin-bottom: 10px;
+}
+
+.AnswerInput-title {
+  margin-bottom: 8px;
+}
+
+.AnswerInput-group {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.AnswerInput-character {
+  min-height: 1.2em;
+  padding: 0.25em 0;
+  font-family: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: min(44px, 11vw);
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+  color: black;
+  background-color: rgba(85, 107, 47, 0.1);
+  border: 3px solid transparent;
+  border-radius: 10px;
+}
+
+/* The box that the next character goes to */
+.AnswerInput-character-current {
+  background-color: white;
+  border-color: #556b2f;
+}
+
+/*
+ * The text field is there but not seen. It is over the boxes, for a browser to keep
+ * the boxes in sight when the keyboard of a phone opens. The size of the text is 16px,
+ * with a smaller one iOS would zoom the page in.
+ */
+.AnswerInput-field {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  font-size: 16px;
+  color: transparent;
+  background: transparent;
+  border: none;
+  outline: none;
+  opacity: 0;
+  caret-color: transparent;
+}
+
+.AnswerInput-hint {
+  font-size: 14px;
+  color: #666;
+}

@@ -28,6 +28,8 @@ export const END_TAIL = 0.05;
 export interface PlaybackCallbacks {
   /** Number of the message group that is being played, 0 before the first group. */
   onGroupChange?: (group: number) => void;
+  /** Number of the character of the message that is being played, 0 before the first character. */
+  onCharacterChange?: (character: number) => void;
   /** The whole message was played. Not called when the playback is stopped. */
   onEnded?: () => void;
   /** The playback could not be started. */
@@ -49,6 +51,7 @@ interface Session {
   startTime: number;
   nextTone: number;
   group: number;
+  character: number;
   timer: number;
 }
 
@@ -167,6 +170,7 @@ class MorsePlayer {
       startTime: context.currentTime + START_DELAY,
       nextTone: 0,
       group: 0,
+      character: 0,
       timer: window.setInterval(() => this.tick(session), SCHEDULER_INTERVAL)
     };
     this.session = session;
@@ -222,6 +226,16 @@ class MorsePlayer {
     if (group !== session.group) {
       session.group = group;
       session.callbacks.onGroupChange?.(group);
+    }
+
+    const starts = timeline.messageCharacterStarts;
+    let character = session.character;
+    while (character < starts.length && position >= starts[character]) {
+      character += 1;
+    }
+    if (character !== session.character) {
+      session.character = character;
+      session.callbacks.onCharacterChange?.(character);
     }
 
     if (session.nextTone >= tones.length && position >= timeline.duration + END_TAIL) {

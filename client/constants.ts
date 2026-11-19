@@ -77,3 +77,18 @@ export type Length = (typeof LENGTHS)[number];
 export const SPEEDS = [40, 60, 80, 100, 120, 140, 160] as const;
 
 export type Speed = (typeof SPEEDS)[number];
+
+export const RECEIVE_MODES: Option[] = [
+  {
+    label: "Harjoittelu",
+    value: "harjoittelu"
+  },
+  {
+    label: "Koe paperille",
+    value: "koe-paperi"
+  },
+  {
+    label: "Koe näppäimistöllä",
+    value: "koe-nappaimisto"
+  }
+];

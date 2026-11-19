@@ -11,6 +11,7 @@ const usePlayer = (characterSpeed: number, effectiveSpeed: number, message: Mors
   const [playing, setPlaying] = useState(false);
   const [stopped, setStopped] = useState(false);
   const [currentGroup, setCurrentGroup] = useState(0);
+  const [currentCharacter, setCurrentCharacter] = useState(0);
 
   const letterChunks = useLetterChunks(message);
 
@@ -37,9 +38,11 @@ const usePlayer = (characterSpeed: number, effectiveSpeed: number, message: Mors
     setPlaying(true);
     setStopped(false);
     setCurrentGroup(0);
+    setCurrentCharacter(0);
 
     player.current.start(buildMessageTimeline(letterChunks, characterSpeed, effectiveSpeed), {
       onGroupChange: setCurrentGroup,
+      onCharacterChange: setCurrentCharacter,
       onEnded: () => {
         setPlaying(false);
         setStopped(true);
@@ -52,6 +55,7 @@ const usePlayer = (characterSpeed: number, effectiveSpeed: number, message: Mors
   }, [letterChunks, characterSpeed, effectiveSpeed]);
 
   return {
+    currentCharacter,
     currentGroup,
     numGroups: letterChunks.length,
     playing,

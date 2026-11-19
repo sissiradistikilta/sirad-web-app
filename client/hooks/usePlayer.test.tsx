@@ -79,6 +79,7 @@ describe("usePlayer", () => {
 
     act(() => advance(0.1 + timeline.groupStarts[0] + 0.05));
     expect(hook.result.current.currentGroup).toBe(1);
+    expect(hook.result.current.currentCharacter).toBe(1);
 
     act(() => advance(timeline.groupStarts[1] - timeline.groupStarts[0]));
     expect(hook.result.current).toMatchObject({ currentGroup: 2, playing: true, stopped: false });

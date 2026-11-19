@@ -1,3 +1,4 @@
+import AnswerInput from "./AnswerInput";
 import Button from "./Button";
 import MorseKey from "./MorseKey";
 import MorseTree from "./MorseTree";
@@ -6,4 +7,4 @@ import Results from "./Results";
 import Select from "./Select";
 import Tabs from "./Tabs";
 
-export { Button, MorseKey, MorseTree, Options, Results, Select, Tabs };
+export { AnswerInput, Button, MorseKey, MorseTree, Options, Results, Select, Tabs };

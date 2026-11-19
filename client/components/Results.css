@@ -80,6 +80,60 @@ button.Button.Results-fullscreen {
   border-bottom: 1px solid #333;
 }
 
+/* Following the playback: what has been played is dimmed, and the place of the playback stands out */
+.Results-following .Results-character-played {
+  color: #999;
+}
+
+.Results-group-current {
+  background-color: rgba(143, 179, 57, 0.2);
+  border-bottom-color: #556b2f;
+}
+
+.Results-character-current {
+  color: white;
+  background-color: #556b2f;
+  border-radius: 0.15em;
+  /* The spacing between the letters is after the letter: the highlight is centered on the letter */
+  margin-left: calc(var(--spacing) / -2);
+  padding-left: calc(var(--spacing) / 2);
+  margin-right: calc(var(--spacing) / 2);
+  letter-spacing: calc(var(--spacing) / 2);
+}
+
+/* A checked answer: a wrong character is red, with the right one above it. The rows have room for that. */
+.Results-marked {
+  --row-size: 2.7;
+}
+
+.Results-marked .Results-row {
+  margin-bottom: 1.6em;
+}
+
+.Results-marked .Results-header {
+  margin-bottom: 0.8em;
+}
+
+.Results-character-wrong {
+  position: relative;
+  color: #c0392b;
+  font-weight: bold;
+}
+
+.Results-correct {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  /* As wide as the letter below, without the spacing after it */
+  right: var(--spacing);
+  font-size: 0.6em;
+  font-weight: bold;
+  letter-spacing: 0;
+  line-height: 1;
+  text-align: center;
+  color: black;
+}
+
 @media screen and (min-width: 600px) {
   .Results {
     --gutter: 2em;
@@ -114,7 +168,7 @@ button.Button.Results-fullscreen {
   height: 100vh;
   margin: 0;
   padding: 1em 1.5em;
-  font-size: min(calc(100vw / 38), calc(100vh / (var(--rows, 10) * 2 + 8)));
+  font-size: min(calc(100vw / 38), calc(100vh / (var(--rows, 10) * var(--row-size, 2) + 9)));
 }
 
 .Results:fullscreen .Results-sheet {
