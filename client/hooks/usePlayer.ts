@@ -1,26 +1,16 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-import { MORSE_CODES_MAP } from "../constants";
+import { buildMessageTimeline, MorsePlayer } from "../audio";
 import { MorseCharacter } from "../types";
-import { getDotLength, getLineLength, sleep } from "../utils";
 
 import useLetterChunks from "./useLetterChunks";
 
 const usePlayer = (characterSpeed: number, effectiveSpeed: number, message: MorseCharacter[]) => {
-  const audioCtx = useRef<AudioContext>(new window.AudioContext());
-  const stopRequested = useRef(false);
+  // The player, and its AudioContext, is created when the playback is started for the first time
+  const player = useRef<MorsePlayer | null>(null);
   const [playing, setPlaying] = useState(false);
   const [stopped, setStopped] = useState(false);
   const [currentGroup, setCurrentGroup] = useState(0);
-  const dotLength = useRef(getDotLength(characterSpeed));
-  const lineLength = useRef(getLineLength(characterSpeed));
-  const farnsworthFactor = useMemo(() => {
-    // Farnsworthia käytetään vain jos effectiveSpeed < characterSpeed ja effectiveSpeed > 0
-    if (effectiveSpeed > 0 && effectiveSpeed < characterSpeed) {
-      return characterSpeed / effectiveSpeed;
-    }
-    return 1;
-  }, [characterSpeed, effectiveSpeed]);
 
   const letterChunks = useLetterChunks(message);
 
@@ -29,183 +19,37 @@ const usePlayer = (characterSpeed: number, effectiveSpeed: number, message: Mors
   }, [message]);
 
   useEffect(() => {
-    dotLength.current = getDotLength(characterSpeed);
-    lineLength.current = getLineLength(characterSpeed);
-  }, [characterSpeed]);
-
-  const oscillatorRef = useRef<OscillatorNode | null>(null);
-  const gainNodeRef = useRef<GainNode | null>(null);
-
-  const createAudioContext = useCallback(() => {
-    if (audioCtx.current && audioCtx.current.state !== "closed") {
-      return;
-    }
-
-    audioCtx.current = new window.AudioContext();
+    return () => {
+      player.current?.dispose();
+      player.current = null;
+    };
   }, []);
 
-  const stopOscillator = useCallback(() => {
-    if (gainNodeRef.current) {
-      const ctx = audioCtx.current;
-      const now = ctx.currentTime;
-      gainNodeRef.current.gain.cancelScheduledValues(now);
-      gainNodeRef.current.gain.setValueAtTime(gainNodeRef.current.gain.value, now);
-      gainNodeRef.current.gain.linearRampToValueAtTime(0, now + 0.04);
-    }
-    window.setTimeout(() => {
-      if (oscillatorRef.current) {
-        oscillatorRef.current.stop();
-        oscillatorRef.current.disconnect();
-        oscillatorRef.current = null;
-      }
-      if (gainNodeRef.current) {
-        gainNodeRef.current.disconnect();
-        gainNodeRef.current = null;
-      }
-    }, 60);
-  }, []);
-
-  const startOscillator = useCallback(() => {
-    createAudioContext();
-    const ctx = audioCtx.current;
-    if (oscillatorRef.current && gainNodeRef.current) {
-      const now = ctx.currentTime;
-      const gainNode = gainNodeRef.current;
-      gainNode.gain.cancelScheduledValues(now);
-      gainNode.gain.setValueAtTime(gainNode.gain.value, now);
-      gainNode.gain.linearRampToValueAtTime(0, now + 0.04);
-    }
-    window.setTimeout(() => {
-      if (!(oscillatorRef.current && gainNodeRef.current)) {
-        const oscillator = ctx.createOscillator();
-        const gainNode = ctx.createGain();
-
-        oscillator.type = "sine";
-        oscillator.frequency.setValueAtTime(800, ctx.currentTime);
-
-        gainNode.gain.setValueAtTime(0, ctx.currentTime);
-
-        oscillator.connect(gainNode);
-        gainNode.connect(ctx.destination);
-
-        oscillator.start();
-
-        oscillatorRef.current = oscillator;
-        gainNodeRef.current = gainNode;
-      }
-    }, 45);
-  }, [createAudioContext]);
-
-  const playBeep = useCallback(
-    async (duration: number) => {
-      startOscillator();
-      const ctx = audioCtx.current;
-      const gainNode = gainNodeRef.current;
-      if (!gainNode) return;
-
-      const now = ctx.currentTime;
-      const maxRamp = Math.max(0.002, Math.min(0.01, duration / 400));
-      const rampTime = Math.min(maxRamp, duration / 400);
-      const fadeOut = rampTime;
-      const endTime = now + duration / 1000;
-
-      gainNode.gain.cancelScheduledValues(now);
-      gainNode.gain.setValueAtTime(gainNode.gain.value, now);
-      gainNode.gain.linearRampToValueAtTime(1.0, now + rampTime);
-      gainNode.gain.setValueAtTime(1.0, endTime - fadeOut);
-      gainNode.gain.linearRampToValueAtTime(0, endTime);
-
-      await sleep(duration);
-    },
-    [startOscillator]
-  );
-
-  const playSilence = useCallback(
-    async (duration: number) => {
-      startOscillator();
-      const ctx = audioCtx.current;
-      const gainNode = gainNodeRef.current;
-      if (!gainNode) return;
-
-      const now = ctx.currentTime;
-      const maxRamp = Math.max(0.002, Math.min(0.01, duration / 400));
-      const rampTime = Math.min(maxRamp, duration / 400);
-
-      gainNode.gain.cancelScheduledValues(now);
-      gainNode.gain.setValueAtTime(gainNode.gain.value, now);
-      gainNode.gain.linearRampToValueAtTime(0, now + rampTime);
-
-      await sleep(duration);
-    },
-    [startOscillator]
-  );
-
-  const playMorseSequence = useCallback(
-    async (letter: MorseCharacter, skipEndPause = false) => {
-      const morse = MORSE_CODES_MAP.get(letter);
-      if (!morse) return;
-      for (const char of morse) {
-        if (stopRequested.current) return;
-        if (char === ".") {
-          await playBeep(dotLength.current);
-        } else if (char === "-") {
-          await playBeep(lineLength.current);
-        }
-        // Don't use farnsworth for intra-character pauses
-        await playSilence(dotLength.current);
-      }
-      if (!skipEndPause) {
-        // Farnsworthia is used for inter-character pauses
-        await playSilence(lineLength.current * farnsworthFactor);
-      }
-    },
-    [playBeep, playSilence, farnsworthFactor]
-  );
-
-  const stopPlayback = useCallback(async () => {
-    stopRequested.current = true;
+  const stopPlayback = useCallback(() => {
+    player.current?.stop();
     setPlaying(false);
     setStopped(true);
-    stopOscillator();
-  }, [stopOscillator]);
+  }, []);
 
-  const startPlayback = useCallback(async () => {
-    stopRequested.current = false;
+  const startPlayback = useCallback(() => {
+    player.current ??= new MorsePlayer();
+
     setPlaying(true);
     setStopped(false);
     setCurrentGroup(0);
-    startOscillator();
 
-    await sleep(50);
-
-    for (let i = 0; i < 3; i += 1) {
-      if (stopRequested.current) return stopPlayback();
-      await playMorseSequence("=");
-    }
-
-    await sleep(lineLength.current * farnsworthFactor);
-
-    for (let i = 0; i < letterChunks.length; i++) {
-      setCurrentGroup(i + 1);
-      if (stopRequested.current) return stopPlayback();
-      for (const letter of letterChunks[i]) {
-        await playMorseSequence(letter);
+    player.current.start(buildMessageTimeline(letterChunks, characterSpeed, effectiveSpeed), {
+      onGroupChange: setCurrentGroup,
+      onEnded: () => {
+        setPlaying(false);
+        setStopped(true);
+      },
+      onError: (error) => {
+        console.error("Cannot start the audio playback", error);
+        setPlaying(false);
       }
-      await playSilence(lineLength.current * farnsworthFactor);
-    }
-
-    await playMorseSequence("+");
-    await sleep(dotLength.current * 2);
-    await playMorseSequence("V", true);
-    await playMorseSequence("A", true);
-    stopPlayback();
-  }, [letterChunks, playMorseSequence, stopPlayback, startOscillator, playSilence, farnsworthFactor]);
-
-  useEffect(() => {
-    return () => {
-      stopOscillator();
-    };
-  }, [stopOscillator]);
+    });
+  }, [letterChunks, characterSpeed, effectiveSpeed]);
 
   return {
     currentGroup,

@@ -1,9 +1,18 @@
-.Select {
+.Select label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 14px;
 }
 
 .Select select {
-  margin: 10px;
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
   padding: 10px 20px;
+  /* A long option is cut with an ellipsis rather than making the page wider */
+  text-overflow: ellipsis;
+  /* No zooming in by a double tap */
+  touch-action: manipulation;
   font-size: 16px;
   font-weight: bold;
   color: white;
@@ -23,4 +32,9 @@
 .Select select:disabled {
   opacity: 0.5;
   cursor: default;
+}
+
+.Select select:focus-visible {
+  outline: 2px solid black;
+  outline-offset: 2px;
 }

@@ -1,4 +1,7 @@
 .App {
+  /* Everything is in one column, as wide as the message */
+  max-width: 800px;
+  margin: 0 auto;
   padding: 20px;
 }
 
@@ -9,4 +12,48 @@
 
 .App p {
   margin-bottom: 10px;
+}
+
+.App h1 + p {
+  margin-bottom: 20px;
+}
+
+.App-buttons {
+  display: flex;
+  gap: 10px;
+  margin: 20px 0;
+}
+
+/* On a phone the buttons fill the row */
+.App-buttons button.Button {
+  flex: 1 1 auto;
+  padding-left: 8px;
+  padding-right: 8px;
+  white-space: nowrap;
+}
+
+.App-status {
+  min-height: 34px;
+  margin-bottom: 10px;
+}
+
+.App-progress {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 3px;
+  background-color: rgba(85, 107, 47, 0.25);
+}
+
+.App-progress-bar {
+  height: 100%;
+  background-color: #556b2f;
+  transition: width 0.3s;
+}
+
+@media screen and (min-width: 600px) {
+  .App-buttons button.Button {
+    flex: 0 0 auto;
+    padding-left: 20px;
+    padding-right: 20px;
+  }
 }

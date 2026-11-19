@@ -1,6 +1,8 @@
 button.Button {
-  margin: 10px;
+  margin: 0;
   padding: 10px 20px;
+  /* No zooming in by a double tap, e.g. when stopping and playing in a row */
+  touch-action: manipulation;
   font-size: 16px;
   font-weight: bold;
   color: white;
@@ -20,4 +22,9 @@ button.Button:hover {
 button.Button:disabled {
   opacity: 0.5;
   cursor: default;
+}
+
+button.Button:focus-visible {
+  outline: 2px solid black;
+  outline-offset: 2px;
 }
