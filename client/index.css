@@ -1,3 +1,13 @@
+/*
+ * A double tap does not zoom the page in. Quick taps are part of using a Morse key, and
+ * a tap that lands beside the key would otherwise leave the page zoomed in and cut off.
+ * Zooming with two fingers and scrolling still work.
+ */
+html,
+body {
+  touch-action: manipulation;
+}
+
 body {
   font-family: Arial, sans-serif;
   padding: 0;

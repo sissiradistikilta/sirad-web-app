@@ -1,0 +1,75 @@
+/* On a phone the key is at the bottom of the screen, under the thumb */
+.MorseKey {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  box-sizing: border-box;
+  height: calc(32vh + env(safe-area-inset-bottom));
+  min-height: 150px;
+  padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
+  background-color: white;
+  /* A press that lands on the edge beside the key does nothing */
+  touch-action: none;
+}
+
+button.MorseKey-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  color: white;
+  background-color: #556b2f;
+  border: none;
+  border-radius: 16px;
+  cursor: pointer;
+  /* A press is only a press: no scrolling, zooming, selecting of text or menu */
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button.MorseKey-button-down {
+  background-color: #8fb339;
+}
+
+button.MorseKey-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+button.MorseKey-button:focus-visible {
+  outline: 2px solid black;
+  outline-offset: 2px;
+}
+
+.MorseKey-label {
+  font-size: 22px;
+  font-weight: bold;
+}
+
+.MorseKey-hint {
+  /* The space bar is of use with a keyboard */
+  display: none;
+  font-size: 14px;
+}
+
+@media screen and (min-width: 600px) and (min-height: 500px) {
+  .MorseKey {
+    position: static;
+    height: 140px;
+    min-height: 0;
+    padding: 0;
+    margin: 20px 0;
+  }
+
+  .MorseKey-hint {
+    display: inline;
+  }
+}

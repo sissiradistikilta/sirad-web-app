@@ -1,0 +1,63 @@
+.MorseTree {
+  display: block;
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.MorseTree-edge {
+  stroke: rgba(85, 107, 47, 0.3);
+  stroke-width: 1;
+}
+
+.MorseTree-edge-lit {
+  stroke: #8fb339;
+  stroke-width: 2.5;
+}
+
+.MorseTree-legend {
+  font-size: 8px;
+  fill: #666;
+}
+
+.MorseTree-node circle {
+  fill: #e9ede3;
+  stroke: rgba(85, 107, 47, 0.5);
+  stroke-width: 0.75;
+}
+
+.MorseTree-node text {
+  font-family: Arial, sans-serif;
+  font-weight: bold;
+  fill: #333;
+}
+
+/* On the path of the character that is being sent */
+.MorseTree-node-lit circle {
+  fill: #556b2f;
+  stroke: #556b2f;
+}
+
+/* The character that the dots and dashes sent so far make */
+.MorseTree-node-current circle {
+  fill: #8fb339;
+  stroke: #556b2f;
+  stroke-width: 1.5;
+}
+
+.MorseTree-node-right circle {
+  fill: #3f8f3f;
+  stroke: #3f8f3f;
+}
+
+.MorseTree-node-wrong circle {
+  fill: #c0392b;
+  stroke: #c0392b;
+}
+
+.MorseTree-node-lit text,
+.MorseTree-node-current text,
+.MorseTree-node-right text,
+.MorseTree-node-wrong text {
+  fill: white;
+}

@@ -29,6 +29,8 @@ export default () =>
       host: "localhost",
       port: 4000,
       strictPort: true,
+      // ngrok sends its own Host header; Vite blocks unknown hosts by default.
+      allowedHosts: [".ngrok-free.app", ".ngrok-free.dev", ".ngrok.app", ".ngrok.io"],
       proxy: {
         "/hello": "http://localhost:4001"
       }

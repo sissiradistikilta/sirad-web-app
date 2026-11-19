@@ -1,0 +1,40 @@
+.Tabs {
+  display: flex;
+  margin-bottom: 20px;
+  border-bottom: 2px solid rgba(85, 107, 47, 0.25);
+}
+
+.Tabs-tab {
+  flex: 1 1 0;
+  /* The line under the selected tab covers the line under the tabs */
+  margin: 0 0 -2px;
+  padding: 10px 20px;
+  font-size: 16px;
+  font-weight: bold;
+  color: #556b2f;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.Tabs-tab:hover {
+  background-color: rgba(85, 107, 47, 0.1);
+}
+
+.Tabs-tab[aria-selected="true"] {
+  color: black;
+  border-bottom-color: #556b2f;
+}
+
+.Tabs-tab:focus-visible {
+  outline: 2px solid black;
+  outline-offset: -2px;
+}
+
+@media screen and (min-width: 600px) {
+  .Tabs-tab {
+    flex: 0 0 auto;
+  }
+}
