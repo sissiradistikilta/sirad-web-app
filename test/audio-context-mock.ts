@@ -1,7 +1,7 @@
 import { vi } from "vitest";
 
 export interface AutomationEvent {
-  type: "setValue" | "linearRamp";
+  type: "setValue" | "linearRamp" | "setTarget";
   value: number;
   time: number;
 }
@@ -18,6 +18,11 @@ export class AudioParamMock {
 
   linearRampToValueAtTime(value: number, time: number) {
     this.events.push({ type: "linearRamp", value, time });
+    return this;
+  }
+
+  setTargetAtTime(value: number, time: number) {
+    this.events.push({ type: "setTarget", value, time });
     return this;
   }
 }

@@ -1,6 +1,9 @@
 import Button from "./Button";
+import MorseKey from "./MorseKey";
+import MorseTree from "./MorseTree";
 import Options from "./Options";
 import Results from "./Results";
 import Select from "./Select";
+import Tabs from "./Tabs";
 
-export { Button, Options, Results, Select };
+export { Button, MorseKey, MorseTree, Options, Results, Select, Tabs };
