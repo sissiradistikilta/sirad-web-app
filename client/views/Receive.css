@@ -1,0 +1,52 @@
+/* The text field of the answer is in the page before the exam too, for it to get the focus when the exam starts */
+.Receive-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* On a phone the keyboard takes half of the screen: the exam gets the rest of it */
+@media screen and (max-width: 599px), screen and (max-height: 499px) {
+  .App:has(.Receive-answering) > h1,
+  .App:has(.Receive-answering) > h1 + p,
+  .App:has(.Receive-answering) > .Tabs,
+  .Receive-answering .Options {
+    display: none;
+  }
+
+  .Receive-answering .App-buttons {
+    margin-top: 0;
+  }
+}
+
+.Receive-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.Receive-summary > div {
+  padding: 12px;
+  background-color: rgba(85, 107, 47, 0.1);
+  border-radius: 10px;
+}
+
+.Receive-summary dt {
+  margin-bottom: 4px;
+  font-size: 14px;
+}
+
+.Receive-summary dd {
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.Receive-summary small {
+  font-size: 13px;
+  font-weight: normal;
+  white-space: nowrap;
+}

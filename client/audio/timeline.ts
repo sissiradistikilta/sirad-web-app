@@ -23,6 +23,8 @@ export interface Timeline {
   events: TimelineEvent[];
   /** Start time of each word. */
   wordStarts: number[];
+  /** Start time of each character, in the order they are sent. */
+  characterStarts: number[];
   /** End time of the last tone. */
   duration: number;
 }
@@ -30,6 +32,8 @@ export interface Timeline {
 export interface MessageTimeline extends Timeline {
   /** Start time of each five-character group of the message. */
   groupStarts: number[];
+  /** Start time of each character of the message, without the start and the end of the message. */
+  messageCharacterStarts: number[];
 }
 
 const START_OF_MESSAGE: MorseCharacter[] = ["=", "=", "="];
@@ -66,6 +70,7 @@ export function getMorseTiming(characterSpeed: number, effectiveSpeed = 0): Mors
 export function buildTimeline(words: string[][], timing: MorseTiming): Timeline {
   const events: TimelineEvent[] = [];
   const wordStarts: number[] = [];
+  const characterStarts: number[] = [];
   let time = 0;
 
   const add = (type: TimelineEvent["type"], duration: number) => {
@@ -79,6 +84,7 @@ export function buildTimeline(words: string[][], timing: MorseTiming): Timeline 
 
     word.forEach((pattern, characterIndex) => {
       if (characterIndex > 0) add("silence", timing.characterGap);
+      characterStarts.push(time);
 
       Array.from(pattern).forEach((element, elementIndex) => {
         if (elementIndex > 0) add("silence", timing.unit);
@@ -87,7 +93,7 @@ export function buildTimeline(words: string[][], timing: MorseTiming): Timeline 
     });
   });
 
-  return { events, wordStarts, duration: time };
+  return { events, wordStarts, characterStarts, duration: time };
 }
 
 const toPattern = (character: MorseCharacter) => MORSE_CODES_MAP.get(character) ?? "";
@@ -109,5 +115,14 @@ export function buildMessageTimeline(
   ];
   const timeline = buildTimeline(words, getMorseTiming(characterSpeed, effectiveSpeed));
 
-  return { ...timeline, groupStarts: timeline.wordStarts.slice(1, 1 + groups.length) };
+  const characters = groups.reduce((sum, group) => sum + group.length, 0);
+
+  return {
+    ...timeline,
+    groupStarts: timeline.wordStarts.slice(1, 1 + groups.length),
+    messageCharacterStarts: timeline.characterStarts.slice(
+      START_OF_MESSAGE.length,
+      START_OF_MESSAGE.length + characters
+    )
+  };
 }

@@ -69,7 +69,7 @@ describe("App", () => {
 
   it("disables every setting during the playback", async () => {
     render(<App />);
-    expect(screen.getAllByRole("combobox")).toHaveLength(4);
+    expect(screen.getAllByRole("combobox")).toHaveLength(5);
     await play();
 
     screen.getAllByRole("combobox").forEach((select) => expect(select).toBeDisabled());
@@ -96,6 +96,226 @@ describe("App", () => {
     fireEvent.click(button("Pysäytä"));
 
     expect(document.querySelector(".Results-caption")).toHaveTextContent("60 merkkiä/min, tehollinen 40 merkkiä/min");
+  });
+
+  describe("practice mode", () => {
+    const UNIT = 60 / (9 * 60);
+    const classes = (selector: string) =>
+      Array.from(document.querySelectorAll(selector), (element) => element.className);
+
+    function practise() {
+      render(<App />);
+      fireEvent.change(screen.getByLabelText("Tila"), { target: { value: "harjoittelu" } });
+      fireEvent.click(button("Uusi sarja"));
+    }
+
+    it("is an exam on paper unless the practice mode is chosen", () => {
+      render(<App />);
+      expect(screen.getByLabelText("Tila")).toHaveValue("koe-paperi");
+      fireEvent.click(button("Uusi sarja"));
+      expect(document.querySelector(".Results")).not.toBeInTheDocument();
+    });
+
+    it("shows the message already before the playback, without highlights", () => {
+      practise();
+      expect(document.querySelectorAll(".Results-row")).toHaveLength(5);
+      expect(document.querySelector(".Results-following")).not.toBeInTheDocument();
+      expect(document.querySelector(".Results-caption")).not.toBeInTheDocument();
+    });
+
+    it("follows the playback: the group and the character being played are highlighted", async () => {
+      practise();
+      await act(async () => {
+        fireEvent.click(button("Toista"));
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(document.querySelector(".Results-following")).toBeInTheDocument();
+      expect(document.querySelector(".Results-character-current")).not.toBeInTheDocument();
+      expect(screen.getByRole("progressbar")).toBeInTheDocument();
+
+      // The start of the message takes 52 units before the first character
+      act(() => advance(0.1 + 52 * UNIT + 0.05));
+      expect(classes(".Results-group")[0]).toContain("Results-group-current");
+      expect(classes(".Results-character")[0]).toContain("Results-character-current");
+      expect(document.querySelectorAll(".Results-character-current")).toHaveLength(1);
+      expect(document.querySelectorAll(".Results-character-played")).toHaveLength(0);
+
+      // No character with its gap is longer than 13 + 3 units
+      act(() => advance(16 * UNIT));
+      expect(classes(".Results-character")[0]).toContain("Results-character-played");
+      expect(document.querySelectorAll(".Results-character-current")).toHaveLength(1);
+    });
+
+    it("keeps the message in sight without highlights when the playback is stopped", async () => {
+      practise();
+      await act(async () => {
+        fireEvent.click(button("Toista"));
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      act(() => advance(0.1 + 60 * UNIT));
+      fireEvent.click(button("Pysäytä"));
+
+      expect(document.querySelectorAll(".Results-row")).toHaveLength(5);
+      expect(document.querySelector(".Results-following")).not.toBeInTheDocument();
+      expect(document.querySelector(".Results-caption")).toHaveTextContent("60 merkkiä/min");
+    });
+
+    it("cannot be changed during the playback", async () => {
+      render(<App />);
+      await play();
+      expect(screen.getByLabelText("Tila")).toBeDisabled();
+    });
+  });
+
+  describe("exam on a keyboard", () => {
+    const field = () => screen.getByLabelText("Vastaus");
+    const write = (text: string) => fireEvent.change(field(), { target: { value: text } });
+    const boxes = () => Array.from(screen.getByLabelText("Kirjoitettava ryhmä").children, (box) => box.textContent);
+    const current = () =>
+      Array.from(screen.getByLabelText("Kirjoitettava ryhmä").children).findIndex((box) =>
+        box.hasAttribute("aria-current")
+      );
+
+    async function startExam() {
+      render(<App />);
+      fireEvent.change(screen.getByLabelText("Tila"), { target: { value: "koe-nappaimisto" } });
+      await play();
+    }
+
+    it("gives the focus to the answer when the playback starts, for the keyboard of a phone to open", async () => {
+      await startExam();
+      expect(field()).toHaveFocus();
+      expect(field()).not.toHaveAttribute("readonly");
+    });
+
+    it("shows the group being written as five boxes with its number, and not where the playback is", async () => {
+      await startExam();
+      expect(boxes()).toEqual(["", "", "", "", ""]);
+      expect(current()).toBe(0);
+      expect(screen.getByText("Ryhmä 1 / 25")).toBeInTheDocument();
+      expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+      expect(document.querySelector(".Results")).not.toBeInTheDocument();
+    });
+
+    it("writes the characters to the boxes, as capitals", async () => {
+      await startExam();
+      write("ab");
+      expect(boxes()).toEqual(["A", "B", "", "", ""]);
+      expect(current()).toBe(2);
+    });
+
+    it("skips a character with a space", async () => {
+      await startExam();
+      write("a b");
+      expect(boxes()).toEqual(["A", "–", "B", "", ""]);
+      expect(current()).toBe(3);
+    });
+
+    it("goes back with the backspace", async () => {
+      await startExam();
+      write("abc");
+      write("ab");
+      expect(boxes()).toEqual(["A", "B", "", "", ""]);
+      expect(current()).toBe(2);
+    });
+
+    it("moves on to the next group after the fifth character", async () => {
+      await startExam();
+      write("abcde");
+      expect(screen.getByText("Ryhmä 2 / 25")).toBeInTheDocument();
+      expect(boxes()).toEqual(["", "", "", "", ""]);
+
+      write("abcdef");
+      expect(boxes()).toEqual(["F", "", "", "", ""]);
+    });
+
+    it("lets the answer be finished after the playback has ended", async () => {
+      await startExam();
+      write("abc");
+      // A message of 125 letters at 60 characters a minute takes well under ten minutes
+      act(() => advance(600));
+
+      expect(screen.getByText("Sanoma päättyi. Kirjoita vastaus loppuun ja paina Valmis.")).toBeInTheDocument();
+      expect(boxes()).toEqual(["A", "B", "C", "", ""]);
+      expect(document.querySelector(".Results")).not.toBeInTheDocument();
+      expect(button("Uusi sarja")).toBeDisabled();
+
+      write("abcd");
+      expect(boxes()).toEqual(["A", "B", "C", "D", ""]);
+
+      fireEvent.click(button("Valmis"));
+      expect(document.querySelectorAll(".Results-row")).toHaveLength(5);
+      expect(field()).toHaveAttribute("readonly");
+      expect(button("Uusi sarja")).toBeEnabled();
+    });
+
+    it("ends by itself when the last character is written after the playback", async () => {
+      await startExam();
+      act(() => advance(600));
+      write("a".repeat(124));
+      expect(document.querySelector(".Results")).not.toBeInTheDocument();
+
+      write("a".repeat(125));
+      expect(document.querySelectorAll(".Results-row")).toHaveLength(5);
+    });
+
+    it("ends when the playback is stopped", async () => {
+      await startExam();
+      write("ab");
+      fireEvent.click(button("Pysäytä"));
+
+      expect(document.querySelectorAll(".Results-row")).toHaveLength(5);
+      expect(AudioContextMock.instances[0].oscillators[0].stop).toHaveBeenCalledTimes(1);
+    });
+
+    it("checks the answer at the end: the wrong characters are marked and counted", async () => {
+      await startExam();
+      act(() => advance(600));
+      // The message is random: the first answer is surely right only after reading it from the result
+      write("  ");
+      fireEvent.click(button("Valmis"));
+      const first = document.querySelector(".Results-correct")?.textContent ?? "";
+      const other = first === "A" ? "B" : "A";
+
+      await act(async () => {
+        fireEvent.click(button("Toista"));
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      write(`${first}${other} x`);
+      fireEvent.click(button("Pysäytä"));
+
+      const characters = document.querySelectorAll(".Results-character");
+      expect(characters[0]).not.toHaveClass("Results-character-wrong");
+      expect(characters[0].textContent).toBe(first);
+      expect(characters[2]).toHaveClass("Results-character-wrong");
+      expect(characters[2].lastChild?.textContent).toBe("–");
+      expect(document.querySelectorAll(".Results-character-wrong").length).toBeGreaterThanOrEqual(122);
+
+      const summary = screen.getByLabelText("Kokeen tulos");
+      expect(summary).toHaveTextContent(/Oikein[1-4] \/ 125/);
+      expect(summary).toHaveTextContent(/Tyhjiä12[12]/);
+    });
+
+    it("does not check anything in an exam on paper", async () => {
+      render(<App />);
+      await play();
+      fireEvent.click(button("Pysäytä"));
+      expect(screen.queryByLabelText("Kokeen tulos")).not.toBeInTheDocument();
+      expect(document.querySelector(".Results-marked")).not.toBeInTheDocument();
+    });
+
+    it("starts with an empty answer each time", async () => {
+      await startExam();
+      write("abc");
+      fireEvent.click(button("Pysäytä"));
+      await act(async () => {
+        fireEvent.click(button("Toista"));
+        await vi.advanceTimersByTimeAsync(0);
+      });
+
+      expect(boxes()).toEqual(["", "", "", "", ""]);
+      expect(field()).toHaveValue("");
+    });
   });
 
   it("shows the receiving exercise first, and the sending exercise from its tab", () => {

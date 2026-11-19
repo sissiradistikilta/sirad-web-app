@@ -37,7 +37,7 @@ function advance(seconds: number) {
 /** A timeline of the given Morse patterns, one group per word, with a unit of 40 ms by default. */
 function timelineOf(words: string[][], unit = 0.04): MessageTimeline {
   const timeline = buildTimeline(words, { unit, characterGap: 3 * unit, wordGap: 7 * unit });
-  return { ...timeline, groupStarts: timeline.wordStarts };
+  return { ...timeline, groupStarts: timeline.wordStarts, messageCharacterStarts: timeline.characterStarts };
 }
 
 /** Groups the automation events of the key gain by tone. */
@@ -291,6 +291,24 @@ describe("MorsePlayer", () => {
 
       advance(timeline.duration + 1);
       expect(onGroupChange.mock.calls).toEqual([[1], [2], [3]]);
+    });
+
+    it("reports the character being played", async () => {
+      const timeline = timelineOf([[".", "-"], [".."]]);
+      const onCharacterChange = vi.fn();
+      player.start(timeline, { onCharacterChange });
+      await flush();
+      expect(onCharacterChange).not.toHaveBeenCalled();
+
+      advance(START_DELAY + 0.02);
+      expect(onCharacterChange.mock.calls).toEqual([[1]]);
+
+      // The second character starts after the dot and the character gap, four units of 40 ms
+      advance(0.16);
+      expect(onCharacterChange.mock.calls).toEqual([[1], [2]]);
+
+      advance(timeline.duration + 1);
+      expect(onCharacterChange.mock.calls).toEqual([[1], [2], [3]]);
     });
 
     it("reports the end of the playback and cleans up", async () => {
