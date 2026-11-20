@@ -1,4 +1,4 @@
-name: Deploy
+name: Deploy frontend
 
 on:
   push:
@@ -7,6 +7,9 @@ on:
 
   pull_request:
     types: [opened, synchronize, reopened, closed]
+
+  # By hand from the Actions tab, e.g. after a variable of the build was changed
+  workflow_dispatch:
 
 jobs:
   build:
@@ -42,7 +45,7 @@ jobs:
       - run: git config --global user.name "github-actions[bot]"
 
       - name: Deploy production (main)
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
         run: |
           echo "cw.sirad.fi" > dist/CNAME
 

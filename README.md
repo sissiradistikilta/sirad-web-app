@@ -48,7 +48,7 @@ The listeners play the keying by the times of the sender, 150 ms late (`client/h
 
 ### Deploys
 
-- `.github/workflows/deploy.yml` builds the frontend and deploys it to GitHub Pages: production from `main` and a preview for each pull request.
+- `.github/workflows/deploy-frontend.yml` (Deploy frontend) builds the frontend and deploys it to GitHub Pages: production from `main` and a preview for each pull request.
 - `.github/workflows/deploy-api.yml` deploys the backend to Render.com from `main`, when the backend has changed (`server`, the dependencies, `render.yaml` or the workflow itself). It can also be run by hand from the Actions tab. There are no deploys of the backend for pull requests.
 
 The Render.com service is described in `render.yaml`. To set it up:
@@ -59,7 +59,7 @@ The Render.com service is described in `render.yaml`. To set it up:
    - the variable `RENDER_SERVICE_ID`: the id of the service (`srv-...`), seen in the address of the service in the Render.com dashboard
    - the variable `API_URL`: the address of the service, e.g. `https://sirad-api.onrender.com`, and later `https://api.sirad.fi`
    - the variable `LIVE_ENABLED`: `true` to have live keying in production
-3. Run the Deploy workflow again (or push to `main`), so that the frontend is built with the address of the backend.
+3. Run the Deploy frontend workflow from the Actions tab (or push to `main`), so that the frontend is built with the address of the backend.
 
 ## Tests
 
