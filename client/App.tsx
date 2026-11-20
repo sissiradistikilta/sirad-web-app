@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 import { ConnectionOptions } from "./api/connection";
-import { ConnectionSwitch, Tabs } from "./components";
-import { useApiConnection } from "./hooks";
+import { ConnectionSwitch, HfpSwitch, Tabs } from "./components";
+import { canHoldMicrophone, useApiConnection, useMicrophoneHold } from "./hooks";
 import { readConnectionPreference, writeConnectionPreference } from "./preferences";
 import { Live, Receive, Send } from "./views";
 
@@ -39,6 +39,11 @@ function App({ live = __LIVE_ENABLED__, apiUrl = __API_URL__, connection, commit
   const backend = live && Boolean(apiUrl);
   const api = useApiConnection(backend && online ? apiUrl : "", connection);
 
+  // An experiment: reserving the microphone makes a Bluetooth headset use its mode for calls (HFP).
+  // It is off each time the page is opened.
+  const [hfp, setHfp] = useState(false);
+  const microphone = useMicrophoneHold(hfp);
+
   const switchConnection = useCallback((on: boolean) => {
     writeConnectionPreference(on);
     setOnline(on);
@@ -73,6 +78,9 @@ function App({ live = __LIVE_ENABLED__, apiUrl = __API_URL__, connection, commit
             <span className="App-commit" title="Version commit">
               {commit}
             </span>
+          )}
+          {canHoldMicrophone() && (
+            <HfpSwitch active={microphone.active} failed={microphone.error !== null} on={hfp} onChange={setHfp} />
           )}
           {backend && <ConnectionSwitch connected={api.connected === true} on={online} onChange={switchConnection} />}
         </span>

@@ -468,6 +468,77 @@ describe("App", () => {
     });
   });
 
+  describe("the HFP switch", () => {
+    const stop = vi.fn();
+    const getUserMedia = vi.fn(async () => ({ getTracks: () => [{ stop }] }));
+    const hfp = () => screen.getByRole("switch", { name: "HFP" });
+
+    beforeEach(() => {
+      stop.mockClear();
+      getUserMedia.mockClear();
+      Object.defineProperty(navigator, "mediaDevices", { configurable: true, value: { getUserMedia } });
+    });
+
+    afterEach(() => {
+      Reflect.deleteProperty(navigator, "mediaDevices");
+    });
+
+    it("is not there if the browser cannot give the microphone", () => {
+      Reflect.deleteProperty(navigator, "mediaDevices");
+      render(<App />);
+      expect(screen.queryByRole("switch", { name: "HFP" })).not.toBeInTheDocument();
+    });
+
+    it("is off by default, and the microphone is not touched", async () => {
+      render(<App />);
+      await act(async () => undefined);
+
+      expect(hfp()).not.toBeChecked();
+      expect(getUserMedia).not.toHaveBeenCalled();
+    });
+
+    it("reserves the microphone when switched on and frees it when switched off", async () => {
+      render(<App />);
+      await act(async () => {
+        fireEvent.click(hfp());
+      });
+      expect(hfp()).toBeChecked();
+      expect(hfp()).toHaveClass("HfpSwitch-on");
+      expect(hfp()).not.toHaveClass("HfpSwitch-waiting");
+      expect(getUserMedia).toHaveBeenCalledTimes(1);
+
+      fireEvent.click(hfp());
+      expect(hfp()).not.toBeChecked();
+      expect(stop).toHaveBeenCalledTimes(1);
+    });
+
+    it("is off again when the page is opened the next time", async () => {
+      const { unmount } = render(<App />);
+      await act(async () => {
+        fireEvent.click(hfp());
+      });
+      unmount();
+
+      render(<App />);
+      expect(hfp()).not.toBeChecked();
+    });
+
+    it("is on the left of the switch of the connection", () => {
+      vi.stubGlobal(
+        "WebSocket",
+        class {
+          static readonly OPEN = 1;
+          readyState = 0;
+          close = vi.fn();
+        }
+      );
+      render(<App apiUrl="http://localhost:4001" live />);
+      const switches = screen.getAllByRole("switch").map((element) => element.getAttribute("aria-label"));
+      expect(switches).toEqual(["HFP", "Yhteys palvelimeen"]);
+      vi.unstubAllGlobals();
+    });
+  });
+
   it("shows the commit of the build when it is given, as in the preview of a pull request", () => {
     const { unmount } = render(<App />);
     expect(screen.queryByTitle("Version commit")).not.toBeInTheDocument();
