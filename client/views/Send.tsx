@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Button, MorseKey, MorseTree, Options, Select } from "../components";
-import { CHARACTER_SETS, LENGTHS, SEND_MODES, SPEEDS } from "../constants";
+import { CHARACTER_SETS, DEFAULT_SEND_MODE, LENGTHS, SEND_MODES, SPEEDS } from "../constants";
 import { useExercise, useKeyer, useLetterChunks } from "../hooks";
 import { WRONG_TIME } from "../hooks/useExercise";
 import { patternToCharacter } from "../keying";
@@ -22,7 +22,7 @@ function Send() {
   const [characters, setCharacters] = useState(CHARACTER_SETS[0].value);
   const [length, setLength] = useState<number>(LENGTHS[0]);
   // In the practice mode the path of the character is shown as it is sent, in an exam there is no such help
-  const [mode, setMode] = useState(SEND_MODES[0].value);
+  const [mode, setMode] = useState(DEFAULT_SEND_MODE);
   const [message, setMessage] = useState<MorseCharacter[]>([]);
 
   const groups = useLetterChunks(message);

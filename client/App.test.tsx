@@ -357,6 +357,102 @@ describe("App", () => {
     group.forEach((character) => expect(character).toMatch(/^[0-9]$/));
   });
 
+  describe("the switch of the connection", () => {
+    const connection = () => screen.getByRole("switch", { name: "Yhteys palvelimeen" });
+    const openSocket = vi.fn();
+
+    beforeEach(() => {
+      openSocket.mockClear();
+      vi.stubGlobal(
+        "WebSocket",
+        class {
+          static readonly OPEN = 1;
+          readyState = 0;
+          close = vi.fn();
+          constructor(url: string) {
+            openSocket(url);
+          }
+        }
+      );
+    });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+      window.history.replaceState(null, "", "/");
+    });
+
+    it("is there only when live keying is in use and there is a backend", () => {
+      const { unmount } = render(<App apiUrl="http://localhost:4001" />);
+      expect(screen.queryByRole("switch")).not.toBeInTheDocument();
+      unmount();
+
+      const second = render(<App apiUrl="" live />);
+      expect(screen.queryByRole("switch")).not.toBeInTheDocument();
+      second.unmount();
+      expect(openSocket).not.toHaveBeenCalled();
+
+      render(<App apiUrl="http://localhost:4001" live />);
+      expect(connection()).toBeInTheDocument();
+    });
+
+    it("is on by default, and the connection is opened", () => {
+      render(<App apiUrl="http://localhost:4001" live />);
+
+      expect(connection()).toBeChecked();
+      expect(openSocket).toHaveBeenCalledWith("ws://localhost:4001/ws");
+      expect(screen.getByRole("status")).toHaveTextContent("Ei yhteyttä palvelimeen");
+    });
+
+    it("closes the connection when switched off, and opens it again when switched on", () => {
+      render(<App apiUrl="http://localhost:4001" live />);
+
+      fireEvent.click(connection());
+      expect(connection()).not.toBeChecked();
+      expect(screen.getByRole("status")).toHaveTextContent("Yhteys palvelimeen on pois päältä");
+      expect(openSocket).toHaveBeenCalledTimes(1);
+
+      fireEvent.click(connection());
+      expect(connection()).toBeChecked();
+      expect(openSocket).toHaveBeenCalledTimes(2);
+    });
+
+    it("remembers that the connection was switched off", () => {
+      const { unmount } = render(<App apiUrl="http://localhost:4001" live />);
+      fireEvent.click(connection());
+      unmount();
+      openSocket.mockClear();
+
+      const second = render(<App apiUrl="http://localhost:4001" live />);
+      expect(connection()).not.toBeChecked();
+      expect(openSocket).not.toHaveBeenCalled();
+
+      // And that it was switched back on
+      fireEvent.click(connection());
+      second.unmount();
+      render(<App apiUrl="http://localhost:4001" live />);
+      expect(connection()).toBeChecked();
+    });
+
+    it("tells in the Live mode that the connection has to be switched on", () => {
+      render(<App apiUrl="http://localhost:4001" live />);
+      fireEvent.click(screen.getByRole("tab", { name: "Live" }));
+      expect(screen.queryByText(/Yhteys palvelimeen on pois päältä. Kytke se päälle/)).not.toBeInTheDocument();
+
+      fireEvent.click(connection());
+      expect(screen.getByText(/Yhteys palvelimeen on pois päältä. Kytke se päälle/)).toBeInTheDocument();
+      expect(button("Sähkötysavain")).toBeDisabled();
+    });
+
+    it("leaves the other settings as they are by default each time", () => {
+      const { unmount } = render(<App apiUrl="http://localhost:4001" live />);
+      fireEvent.change(screen.getByLabelText("Merkkien nopeus"), { target: { value: "100" } });
+      unmount();
+
+      render(<App apiUrl="http://localhost:4001" live />);
+      expect(screen.getByLabelText("Merkkien nopeus")).toHaveValue("60");
+    });
+  });
+
   it("shows the commit of the build when it is given, as in the preview of a pull request", () => {
     const { unmount } = render(<App />);
     expect(screen.queryByTitle("Version commit")).not.toBeInTheDocument();
@@ -466,9 +562,11 @@ describe("App", () => {
     const group = () => Array.from(screen.getByLabelText("Sähkötettävä ryhmä").children);
     const states = () => group().map((element) => element.className.replace("Send-character Send-character-", ""));
 
-    function startExercise() {
+    /** Starts the exercise: as an exam, which is the default, or in the practice mode with its help. */
+    function startExercise(mode?: "harjoittelu") {
       render(<App />);
       fireEvent.click(screen.getByRole("tab", { name: "Anto" }));
+      if (mode) fireEvent.change(screen.getByLabelText("Tila"), { target: { value: mode } });
       fireEvent.click(button("Aloita"));
     }
 
@@ -510,7 +608,7 @@ describe("App", () => {
     });
 
     it("shows what is being sent", () => {
-      startExercise();
+      startExercise("harjoittelu");
       const key = button("Sähkötysavain");
       fireEvent.pointerDown(key, { button: 0, pointerId: 1 });
       fireEvent.pointerUp(key, { pointerId: 1 });
@@ -518,7 +616,7 @@ describe("App", () => {
     });
 
     it("lights the path of the character in the tree, and shows the completed character for a moment", () => {
-      startExercise();
+      startExercise("harjoittelu");
       const key = button("Sähkötysavain");
       const state = (pattern: string) => document.querySelector(`[data-pattern="${pattern}"]`)?.getAttribute("class");
 
@@ -538,8 +636,8 @@ describe("App", () => {
     it("shows no help in an exam: no tree and nothing of what is being sent", () => {
       render(<App />);
       fireEvent.click(screen.getByRole("tab", { name: "Anto" }));
-      expect(screen.getByLabelText("Tila")).toHaveValue("harjoittelu");
-      fireEvent.change(screen.getByLabelText("Tila"), { target: { value: "koe" } });
+      // An exam is the default
+      expect(screen.getByLabelText("Tila")).toHaveValue("koe");
       fireEvent.click(button("Aloita"));
 
       expect(document.querySelector(".MorseTree")).not.toBeInTheDocument();
@@ -553,7 +651,7 @@ describe("App", () => {
     });
 
     it("shows the tree and what is being sent in the practice mode", () => {
-      startExercise();
+      startExercise("harjoittelu");
       expect(document.querySelector(".MorseTree")).toBeInTheDocument();
       expect(screen.getByLabelText("Sähkötetty")).toBeInTheDocument();
     });

@@ -8,6 +8,8 @@ import "./Live.css";
 
 interface Props {
   api: Api;
+  /** The user has switched the connection to the backend off. */
+  off?: boolean;
 }
 
 interface LampProps {
@@ -28,7 +30,10 @@ function Lamp({ label, name, on }: LampProps) {
   );
 }
 
-function getStatus(api: Api, frequency: number | null, live: ReturnType<typeof useLive>) {
+function getStatus(api: Api, off: boolean, frequency: number | null, live: ReturnType<typeof useLive>) {
+  if (off) {
+    return "Yhteys palvelimeen on pois päältä. Kytke se päälle oikean yläkulman kytkimestä, niin voit käyttää livesähkötystä.";
+  }
   if (api.connected === null) return "Livesähkötys tarvitsee palvelimen, eikä sen osoitetta ole määritetty.";
   if (!api.connected) return "Ei yhteyttä palvelimeen. Yhteyttä yritetään uudelleen.";
   if (frequency === null) return "Anna taajuus väliltä 1,5–30 MHz, enintään 100 Hz:n tarkkuudella.";
@@ -44,7 +49,7 @@ function getStatus(api: Api, frequency: number | null, live: ReturnType<typeof u
  * Live keying: those who are on the same frequency hear the keying of each other.
  * Only one can key at a time, so the key is disabled while someone else is keying.
  */
-function Live({ api }: Props) {
+function Live({ api, off = false }: Props) {
   const [text, setText] = useState(formatFrequency(DEFAULT_FREQUENCY));
   const frequency = parseFrequency(text);
   const live = useLive(api, frequency);
@@ -70,7 +75,7 @@ function Live({ api }: Props) {
         </div>
       </div>
       <p aria-live="polite" className="App-status">
-        {getStatus(api, frequency, live)}
+        {getStatus(api, off, frequency, live)}
       </p>
       <p className="Live-help">
         Samalla taajuudella olevat kuulevat toistensa sähkötyksen. Vain yksi voi sähköttää kerrallaan.
