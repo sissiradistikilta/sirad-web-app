@@ -1,0 +1,13 @@
+diff --git a/.github/workflows/deploy.yml b/.github/workflows/deploy.yml
+index 9a7030b..26c661a 100644
+--- a/.github/workflows/deploy.yml
++++ b/.github/workflows/deploy.yml
+@@ -33,6 +33,8 @@ jobs:
+       - run: npm run build
+         env:
+           API_URL: ${{ vars.API_URL }}
++          # Live keying is always on in the previews of pull requests, in production by the variable
++          LIVE_ENABLED: ${{ github.event_name == 'pull_request' && 'true' || vars.LIVE_ENABLED }}
+ 
+       - run: git config --global user.email "github-actions[bot]@users.noreply.github.com"
+       - run: git config --global user.name "github-actions[bot]"

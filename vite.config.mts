@@ -16,7 +16,9 @@ export default ({ mode }: { mode: string }) =>
     plugins: [react({})],
     define: {
       // The address of the backend, e.g. https://api.sirad.fi. In development the backend is the local one.
-      __API_URL__: JSON.stringify(process.env.API_URL ?? (mode === "development" ? "http://localhost:4001" : ""))
+      __API_URL__: JSON.stringify(process.env.API_URL ?? (mode === "development" ? "http://localhost:4001" : "")),
+      // Whether live keying, and with it the connection to the backend, is in use
+      __LIVE_ENABLED__: JSON.stringify(process.env.LIVE_ENABLED === "true")
     },
     build: {
       outDir: "../dist",
