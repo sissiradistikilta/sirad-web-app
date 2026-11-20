@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { AudioContextMock } from "../../test/audio-context-mock";
 
@@ -92,69 +92,83 @@ describe("Sidetone", () => {
   });
 
   describe("with the times of the presses", () => {
-    /** The audio plays what was scheduled 50 ms ago, and its clock advances 10 ms at a time. */
-    const LATENCY = 0.05;
+    /** The audio clock advances 10 ms at a time. */
     const BLOCK = 0.01;
-    let clock = 0;
 
     /** Moves the time on, in milliseconds. The audio clock is at the edge of its latest block. */
     const at = (time: number) => {
-      clock = time;
       context().currentTime = Math.floor(time / 1000 / BLOCK) * BLOCK + 1;
     };
+    const times = () => gain().events.map(({ time }) => time);
 
     beforeEach(async () => {
-      vi.spyOn(performance, "now").mockImplementation(() => clock);
       sidetone.prepare();
       await Promise.resolve();
-      Object.assign(context(), {
-        getOutputTimestamp: () => ({ contextTime: clock / 1000 + 1 - LATENCY, performanceTime: clock })
+      context().baseLatency = BLOCK;
+    });
+
+    it("makes the tones and the gaps as long as they were keyed, wherever in the blocks of the audio they land", () => {
+      // .--. keyed with a unit of 43 ms: none of the events is at the edge of a block
+      const events = [103, 146, 189, 318, 361, 490, 533, 576];
+      events.forEach((time, index) => {
+        at(time);
+        if (index % 2 === 0) sidetone.keyDown(time);
+        else sidetone.keyUp(time);
       });
-      // The audio has run for a while: the delay of the audio has been seen at its longest, at the end of a block
-      at(9.999);
-      sidetone.keyUp(clock);
-      gain().events.length = 0;
+
+      const [start, ...rest] = times();
+      rest.forEach((time, index) => expect(time - start).toBeCloseTo((events[index + 1] - events[0]) / 1000, 6));
+      // The first press is played a block after it is handled
+      expect(start).toBeCloseTo(1.1 + BLOCK, 6);
     });
 
-    afterEach(() => {
-      vi.restoreAllMocks();
-    });
-
-    it("makes each tone as long as the press, wherever in the blocks of the audio the events land", () => {
-      // A dot of 45 ms that starts early in a block and ends late in another
-      at(103);
-      sidetone.keyDown(103);
-      const blockOfPress = context().currentTime;
-      at(148);
-      sidetone.keyUp(148);
-
-      const [on, off] = gain().events;
-      expect(off.time - on.time).toBeCloseTo(0.045, 6);
-      // Without the times of the presses the tone would be 40 ms: from the edge of a block to another
-      expect(context().currentTime - blockOfPress).toBeCloseTo(0.04, 6);
-    });
-
-    it("plays an event a constant moment after it happened, also when it is handled late", () => {
+    it("keeps the gap between two tones even if the events are handled late", () => {
       at(203);
       sidetone.keyDown(203);
-      // The release is handled 6 ms late, e.g. because the page was busy
-      at(249);
-      sidetone.keyUp(243);
+      at(303);
+      sidetone.keyUp(303);
+      // The page was busy: the next press is handled 6 ms late, but played by its own time
+      at(353);
+      sidetone.keyDown(347);
+      at(447);
+      sidetone.keyUp(447);
 
-      const [on, off] = gain().events;
-      expect(off.time - on.time).toBeCloseTo(0.04, 6);
+      const [on, off, again, end] = times();
+      expect(off - on).toBeCloseTo(0.1, 6);
+      expect(again - off).toBeCloseTo(0.044, 6);
+      expect(end - again).toBeCloseTo(0.1, 6);
     });
 
-    it("never schedules in the past", () => {
+    it("never plays a release before the press, or anything in the past", () => {
       at(300);
-      sidetone.keyDown(100);
-      expect(gain().events[0].time).toBe(context().currentTime);
+      sidetone.keyDown(300);
+      // The release is handled so late that its own time has passed
+      at(400);
+      sidetone.keyUp(330);
+      at(450);
+      sidetone.keyDown(450);
+
+      const [on, off, again] = times();
+      expect(off).toBeGreaterThanOrEqual(1.4);
+      expect(off).toBeGreaterThan(on);
+      expect(again).toBeGreaterThan(off);
+    });
+
+    it("starts from a clean state after a pause in the keying", () => {
+      at(103);
+      sidetone.keyDown(103);
+      at(143);
+      sidetone.keyUp(143);
+      at(5007);
+      sidetone.keyDown(5007);
+
+      expect(times()[2]).toBeCloseTo(context().currentTime + BLOCK, 6);
     });
 
     it("moves the key right away without the time of the event", () => {
       at(403);
       sidetone.keyDown();
-      expect(gain().events[0].time).toBe(context().currentTime);
+      expect(times()[0]).toBe(context().currentTime);
     });
   });
 });
