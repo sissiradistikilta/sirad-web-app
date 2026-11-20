@@ -28,7 +28,12 @@ jobs:
         run: echo "BASE_HREF=/pr-${{ github.event.number }}/" >> $GITHUB_ENV
 
       - run: npm ci
+
+      # The address of the backend the frontend connects to, e.g. https://api.sirad.fi
       - run: npm run build
+        env:
+          API_URL: ${{ vars.API_URL }}
+
       - run: git config --global user.email "github-actions[bot]@users.noreply.github.com"
       - run: git config --global user.name "github-actions[bot]"
 
