@@ -362,16 +362,20 @@ describe("App", () => {
     expect(screen.queryByRole("tab", { name: "Live" })).not.toBeInTheDocument();
     unmount();
 
-    // The mode is not opened from the address either
-    window.history.replaceState(null, "", "#live");
+    // The mode is not opened from the address either, and the address does not keep pointing to it
+    window.history.replaceState(null, "", "/pr-20/#live");
     render(<App />);
     expect(screen.getByRole("tab", { name: "Vastaanotto" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.queryByLabelText("Taajuus (MHz)")).not.toBeInTheDocument();
+    expect(window.location.pathname + window.location.hash).toBe("/pr-20/");
     cleanup();
 
+    window.history.replaceState(null, "", "/pr-20/#live");
     render(<App live />);
     expect(screen.getByRole("tab", { name: "Live" })).toHaveAttribute("aria-selected", "true");
+    expect(window.location.pathname + window.location.hash).toBe("/pr-20/#live");
     expect(screen.getByLabelText("Taajuus (MHz)")).toBeInTheDocument();
-    window.history.replaceState(null, "", window.location.pathname);
+    window.history.replaceState(null, "", "/");
   });
 
   it("shows the receiving exercise first, and the sending exercise from its tab", () => {

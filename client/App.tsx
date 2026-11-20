@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 import { ConnectionOptions } from "./api/connection";
 import { ConnectionStatus, Tabs } from "./components";
@@ -33,6 +33,14 @@ function App({ live = __LIVE_ENABLED__, apiUrl = __API_URL__, connection }: Prop
   const mode = modes.some(({ value }) => value === selected) ? selected : modes[0].value;
   const api = useApiConnection(live ? apiUrl : "", connection);
   const { connected } = api;
+
+  // The address does not keep pointing to a mode that is not in use, e.g. #live without live keying
+  useEffect(() => {
+    const { hash, pathname, search } = window.location;
+    if (hash && !modes.some(({ value }) => `#${value}` === hash)) {
+      window.history.replaceState(null, "", `${pathname}${search}`);
+    }
+  }, [modes]);
 
   const selectMode = useCallback(
     (value: string) => {
