@@ -35,6 +35,8 @@ describe("Sidetone", () => {
     expect(oscillator.start).toHaveBeenCalledTimes(1);
     expect(gain().value).toBe(0);
     expect(context().resume).toHaveBeenCalledTimes(1);
+    // The tone has to follow the key as closely as the device can
+    expect(context().options).toEqual({ latencyHint: 0 });
   });
 
   it("moves the gain towards the tone when the key goes down and towards silence when it goes up", () => {
