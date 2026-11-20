@@ -1,0 +1,15 @@
+.ConnectionStatus {
+  flex: 0 0 auto;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  transition: background-color 0.3s;
+}
+
+.ConnectionStatus-connected {
+  background-color: #3f8f3f;
+}
+
+.ConnectionStatus-disconnected {
+  background-color: #c0392b;
+}

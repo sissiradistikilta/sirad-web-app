@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from "react";
 
-import { Tabs } from "./components";
+import { ConnectionStatus, Tabs } from "./components";
+import { useApiConnection } from "./hooks";
 import { Receive, Send } from "./views";
 
 import "./App.css";
@@ -15,6 +16,7 @@ const getMode = () => MODES.find(({ value }) => `#${value}` === window.location.
 
 function App() {
   const [mode, setMode] = useState(getMode);
+  const connected = useApiConnection(__API_URL__);
 
   const selectMode = useCallback((value: string) => {
     window.history.replaceState(null, "", value === MODES[0].value ? window.location.pathname : `#${value}`);
@@ -23,7 +25,10 @@ function App() {
 
   return (
     <div className="App">
-      <h1>SiRad Web</h1>
+      <h1>
+        SiRad Web
+        {connected !== null && <ConnectionStatus connected={connected} />}
+      </h1>
       <p>Harjoittele sähkötystä tietokoneellasi tai puhelimellasi.</p>
       <Tabs label="Harjoitus" onChange={selectMode} options={MODES} selected={mode} />
       {mode === "anto" ? <Send /> : <Receive />}
