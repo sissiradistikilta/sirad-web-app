@@ -32,27 +32,34 @@ const usePlayer = (characterSpeed: number, effectiveSpeed: number, message: Mors
     setStopped(true);
   }, []);
 
-  const startPlayback = useCallback(() => {
-    player.current ??= new MorsePlayer();
+  /** @param groups A message to play instead of the one given to the hook, when it was created just now. */
+  const startPlayback = useCallback(
+    (groups?: MorseCharacter[][]) => {
+      player.current ??= new MorsePlayer();
 
-    setPlaying(true);
-    setStopped(false);
-    setCurrentGroup(0);
-    setCurrentCharacter(0);
+      setPlaying(true);
+      setStopped(false);
+      setCurrentGroup(0);
+      setCurrentCharacter(0);
 
-    player.current.start(buildMessageTimeline(letterChunks, characterSpeed, effectiveSpeed), {
-      onGroupChange: setCurrentGroup,
-      onCharacterChange: setCurrentCharacter,
-      onEnded: () => {
-        setPlaying(false);
-        setStopped(true);
-      },
-      onError: (error) => {
-        console.error("Cannot start the audio playback", error);
-        setPlaying(false);
-      }
-    });
-  }, [letterChunks, characterSpeed, effectiveSpeed]);
+      player.current.start(
+        buildMessageTimeline(Array.isArray(groups) ? groups : letterChunks, characterSpeed, effectiveSpeed),
+        {
+          onGroupChange: setCurrentGroup,
+          onCharacterChange: setCurrentCharacter,
+          onEnded: () => {
+            setPlaying(false);
+            setStopped(true);
+          },
+          onError: (error) => {
+            console.error("Cannot start the audio playback", error);
+            setPlaying(false);
+          }
+        }
+      );
+    },
+    [letterChunks, characterSpeed, effectiveSpeed]
+  );
 
   return {
     currentCharacter,

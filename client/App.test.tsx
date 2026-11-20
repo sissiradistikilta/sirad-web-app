@@ -20,9 +20,8 @@ function advance(seconds: number) {
 const button = (name: string) => screen.getByRole("button", { name });
 
 async function play() {
-  fireEvent.click(button("Uusi sarja"));
   await act(async () => {
-    fireEvent.click(button("Toista"));
+    fireEvent.click(button("Aloita"));
     await vi.advanceTimersByTimeAsync(0);
   });
 }
@@ -43,14 +42,32 @@ describe("App", () => {
     expect(screen.getByText(/SiRad Web/)).toBeInTheDocument();
   });
 
-  it("tells how to begin, and when a series is ready", () => {
+  it("tells how to begin, and creates a series and plays it from one button", async () => {
     render(<App />);
-    expect(screen.getByText("Aloita luomalla uusi sarja.")).toBeInTheDocument();
-    expect(button("Toista")).toBeDisabled();
+    expect(screen.getByText("Aloita, niin saat uuden sarjan ja sen toisto alkaa.")).toBeInTheDocument();
+    expect(button("Aloita")).toBeEnabled();
+    expect(button("Lopeta")).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Uusi sarja" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Toista" })).not.toBeInTheDocument();
 
-    fireEvent.click(button("Uusi sarja"));
-    expect(screen.getByText("Sarja valmis toistettavaksi.")).toBeInTheDocument();
-    expect(button("Toista")).toBeEnabled();
+    await play();
+    expect(AudioContextMock.instances[0].oscillators).toHaveLength(1);
+    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuemax", "25");
+    expect(screen.queryByText("Aloita, niin saat uuden sarjan ja sen toisto alkaa.")).not.toBeInTheDocument();
+  });
+
+  it("plays a new series each time", async () => {
+    const random = vi.spyOn(Math, "random").mockReturnValue(0);
+    render(<App />);
+    await play();
+    fireEvent.click(button("Lopeta"));
+    expect(document.querySelector(".Results-group")?.textContent).toBe("AAAAA");
+
+    random.mockReturnValue(0.99);
+    await play();
+    fireEvent.click(button("Lopeta"));
+    expect(document.querySelector(".Results-group")?.textContent).toBe("ZZZZZ");
+    random.mockRestore();
   });
 
   it("shows the group being played and the progress", async () => {
@@ -73,15 +90,14 @@ describe("App", () => {
     await play();
 
     screen.getAllByRole("combobox").forEach((select) => expect(select).toBeDisabled());
-    expect(button("Uusi sarja")).toBeDisabled();
-    expect(button("Toista")).toBeDisabled();
-    expect(button("Pysäytä")).toBeEnabled();
+    expect(button("Aloita")).toBeDisabled();
+    expect(button("Lopeta")).toBeEnabled();
   });
 
   it("shows the message when the playback is stopped", async () => {
     render(<App />);
     await play();
-    fireEvent.click(button("Pysäytä"));
+    fireEvent.click(button("Lopeta"));
 
     expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
     expect(document.querySelectorAll(".Results-row")).toHaveLength(5);
@@ -93,7 +109,7 @@ describe("App", () => {
     render(<App />);
     fireEvent.change(screen.getByLabelText("Tehollinen nopeus"), { target: { value: "40" } });
     await play();
-    fireEvent.click(button("Pysäytä"));
+    fireEvent.click(button("Lopeta"));
 
     expect(document.querySelector(".Results-caption")).toHaveTextContent("60 merkkiä/min, tehollinen 40 merkkiä/min");
   });
@@ -103,35 +119,29 @@ describe("App", () => {
     const classes = (selector: string) =>
       Array.from(document.querySelectorAll(selector), (element) => element.className);
 
-    function practise() {
+    async function practise() {
       render(<App />);
       fireEvent.change(screen.getByLabelText("Tila"), { target: { value: "harjoittelu" } });
-      fireEvent.click(button("Uusi sarja"));
+      await play();
     }
 
-    it("is an exam on paper unless the practice mode is chosen", () => {
+    it("is an exam on paper unless the practice mode is chosen", async () => {
       render(<App />);
       expect(screen.getByLabelText("Tila")).toHaveValue("koe-paperi");
-      fireEvent.click(button("Uusi sarja"));
+      await play();
       expect(document.querySelector(".Results")).not.toBeInTheDocument();
     });
 
-    it("shows the message already before the playback, without highlights", () => {
-      practise();
+    it("shows the message from the start of the playback, with nothing highlighted before the first character", async () => {
+      await practise();
       expect(document.querySelectorAll(".Results-row")).toHaveLength(5);
-      expect(document.querySelector(".Results-following")).not.toBeInTheDocument();
-      expect(document.querySelector(".Results-caption")).not.toBeInTheDocument();
-    });
-
-    it("follows the playback: the group and the character being played are highlighted", async () => {
-      practise();
-      await act(async () => {
-        fireEvent.click(button("Toista"));
-        await vi.advanceTimersByTimeAsync(0);
-      });
       expect(document.querySelector(".Results-following")).toBeInTheDocument();
       expect(document.querySelector(".Results-character-current")).not.toBeInTheDocument();
       expect(screen.getByRole("progressbar")).toBeInTheDocument();
+    });
+
+    it("follows the playback: the group and the character being played are highlighted", async () => {
+      await practise();
 
       // The start of the message takes 52 units before the first character
       act(() => advance(0.1 + 52 * UNIT + 0.05));
@@ -147,13 +157,9 @@ describe("App", () => {
     });
 
     it("keeps the message in sight without highlights when the playback is stopped", async () => {
-      practise();
-      await act(async () => {
-        fireEvent.click(button("Toista"));
-        await vi.advanceTimersByTimeAsync(0);
-      });
+      await practise();
       act(() => advance(0.1 + 60 * UNIT));
-      fireEvent.click(button("Pysäytä"));
+      fireEvent.click(button("Lopeta"));
 
       expect(document.querySelectorAll(".Results-row")).toHaveLength(5);
       expect(document.querySelector(".Results-following")).not.toBeInTheDocument();
@@ -238,7 +244,7 @@ describe("App", () => {
       expect(screen.getByText("Sanoma päättyi. Kirjoita vastaus loppuun ja paina Valmis.")).toBeInTheDocument();
       expect(boxes()).toEqual(["A", "B", "C", "", ""]);
       expect(document.querySelector(".Results")).not.toBeInTheDocument();
-      expect(button("Uusi sarja")).toBeDisabled();
+      expect(button("Aloita")).toBeDisabled();
 
       write("abcd");
       expect(boxes()).toEqual(["A", "B", "C", "D", ""]);
@@ -246,7 +252,7 @@ describe("App", () => {
       fireEvent.click(button("Valmis"));
       expect(document.querySelectorAll(".Results-row")).toHaveLength(5);
       expect(field()).toHaveAttribute("readonly");
-      expect(button("Uusi sarja")).toBeEnabled();
+      expect(button("Aloita")).toBeEnabled();
     });
 
     it("ends by itself when the last character is written after the playback", async () => {
@@ -262,44 +268,40 @@ describe("App", () => {
     it("ends when the playback is stopped", async () => {
       await startExam();
       write("ab");
-      fireEvent.click(button("Pysäytä"));
+      fireEvent.click(button("Lopeta"));
 
       expect(document.querySelectorAll(".Results-row")).toHaveLength(5);
       expect(AudioContextMock.instances[0].oscillators[0].stop).toHaveBeenCalledTimes(1);
     });
 
     it("checks the answer at the end: the wrong characters are marked and counted", async () => {
+      // A message of the letter A only
+      const random = vi.spyOn(Math, "random").mockReturnValue(0);
       await startExam();
-      act(() => advance(600));
-      // The message is random: the first answer is surely right only after reading it from the result
-      write("  ");
-      fireEvent.click(button("Valmis"));
-      const first = document.querySelector(".Results-correct")?.textContent ?? "";
-      const other = first === "A" ? "B" : "A";
-
-      await act(async () => {
-        fireEvent.click(button("Toista"));
-        await vi.advanceTimersByTimeAsync(0);
-      });
-      write(`${first}${other} x`);
-      fireEvent.click(button("Pysäytä"));
+      random.mockRestore();
+      write("ab a");
+      fireEvent.click(button("Lopeta"));
 
       const characters = document.querySelectorAll(".Results-character");
       expect(characters[0]).not.toHaveClass("Results-character-wrong");
-      expect(characters[0].textContent).toBe(first);
+      expect(characters[1]).toHaveClass("Results-character-wrong");
+      expect(characters[1].lastChild?.textContent).toBe("B");
+      expect(characters[1].querySelector(".Results-correct")?.textContent).toBe("A");
       expect(characters[2]).toHaveClass("Results-character-wrong");
       expect(characters[2].lastChild?.textContent).toBe("–");
-      expect(document.querySelectorAll(".Results-character-wrong").length).toBeGreaterThanOrEqual(122);
+      expect(characters[3]).not.toHaveClass("Results-character-wrong");
+      expect(document.querySelectorAll(".Results-character-wrong")).toHaveLength(123);
 
       const summary = screen.getByLabelText("Kokeen tulos");
-      expect(summary).toHaveTextContent(/Oikein[1-4] \/ 125/);
-      expect(summary).toHaveTextContent(/Tyhjiä12[12]/);
+      expect(summary).toHaveTextContent("Oikein2 / 125");
+      expect(summary).toHaveTextContent("Väärin1");
+      expect(summary).toHaveTextContent("Tyhjiä122");
     });
 
     it("does not check anything in an exam on paper", async () => {
       render(<App />);
       await play();
-      fireEvent.click(button("Pysäytä"));
+      fireEvent.click(button("Lopeta"));
       expect(screen.queryByLabelText("Kokeen tulos")).not.toBeInTheDocument();
       expect(document.querySelector(".Results-marked")).not.toBeInTheDocument();
     });
@@ -307,9 +309,9 @@ describe("App", () => {
     it("starts with an empty answer each time", async () => {
       await startExam();
       write("abc");
-      fireEvent.click(button("Pysäytä"));
+      fireEvent.click(button("Lopeta"));
       await act(async () => {
-        fireEvent.click(button("Toista"));
+        fireEvent.click(button("Aloita"));
         await vi.advanceTimersByTimeAsync(0);
       });
 
@@ -321,15 +323,15 @@ describe("App", () => {
   it("shows the receiving exercise first, and the sending exercise from its tab", () => {
     render(<App />);
     expect(screen.getByRole("tab", { name: "Vastaanotto" })).toHaveAttribute("aria-selected", "true");
-    expect(button("Uusi sarja")).toBeInTheDocument();
+    expect(screen.getByLabelText("Tehollinen nopeus")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("tab", { name: "Anto" }));
     expect(screen.getByRole("tab", { name: "Anto" })).toHaveAttribute("aria-selected", "true");
-    expect(screen.queryByRole("button", { name: "Uusi sarja" })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Tehollinen nopeus")).not.toBeInTheDocument();
     expect(window.location.hash).toBe("#anto");
 
     fireEvent.click(screen.getByRole("tab", { name: "Vastaanotto" }));
-    expect(button("Uusi sarja")).toBeInTheDocument();
+    expect(screen.getByLabelText("Tehollinen nopeus")).toBeInTheDocument();
     expect(window.location.hash).toBe("");
   });
 
@@ -387,7 +389,7 @@ describe("App", () => {
       render(<App />);
       fireEvent.click(screen.getByRole("tab", { name: "Anto" }));
       expect(screen.queryByRole("button", { name: "Sähkötysavain" })).not.toBeInTheDocument();
-      expect(screen.getAllByRole("combobox")).toHaveLength(3);
+      expect(screen.getAllByRole("combobox")).toHaveLength(4);
 
       fireEvent.click(button("Aloita"));
       expect(button("Sähkötysavain")).toBeEnabled();
@@ -446,6 +448,29 @@ describe("App", () => {
       expect(state(".")).toContain("MorseTree-node-off");
     });
 
+    it("shows no help in an exam: no tree and nothing of what is being sent", () => {
+      render(<App />);
+      fireEvent.click(screen.getByRole("tab", { name: "Anto" }));
+      expect(screen.getByLabelText("Tila")).toHaveValue("harjoittelu");
+      fireEvent.change(screen.getByLabelText("Tila"), { target: { value: "koe" } });
+      fireEvent.click(button("Aloita"));
+
+      expect(document.querySelector(".MorseTree")).not.toBeInTheDocument();
+      expect(screen.queryByLabelText("Sähkötetty")).not.toBeInTheDocument();
+
+      // The exercise itself works as in the practice mode
+      send(group()[0].textContent);
+      expect(states()).toEqual(["done", "current", "pending", "pending", "pending"]);
+      send(group()[1].textContent === "E" ? "T" : "E");
+      expect(states()).toEqual(["done", "wrong", "pending", "pending", "pending"]);
+    });
+
+    it("shows the tree and what is being sent in the practice mode", () => {
+      startExercise();
+      expect(document.querySelector(".MorseTree")).toBeInTheDocument();
+      expect(screen.getByLabelText("Sähkötetty")).toBeInTheDocument();
+    });
+
     it("shows the next group when a group is done", () => {
       startExercise();
       const first = group().map((element) => element.textContent);
@@ -466,8 +491,8 @@ describe("App", () => {
       expect(result).toHaveTextContent("Merkkejä1 / 125");
       expect(result).toHaveTextContent("Virheitä1");
       expect(screen.queryByRole("button", { name: "Sähkötysavain" })).not.toBeInTheDocument();
-      expect(button("Uusi harjoitus")).toBeEnabled();
-      expect(screen.getAllByRole("combobox")).toHaveLength(3);
+      expect(button("Aloita")).toBeEnabled();
+      expect(screen.getAllByRole("combobox")).toHaveLength(4);
     });
   });
 });

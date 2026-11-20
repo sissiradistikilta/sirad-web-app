@@ -5,6 +5,7 @@ import { AnswerInput, Button, Options, Results, Select } from "../components";
 import { LENGTHS, CHARACTER_SETS, RECEIVE_MODES, SPEEDS } from "../constants";
 import { usePlayer } from "../hooks";
 import { createMessage } from "../message";
+import { chunkArray } from "../utils";
 import { MorseCharacter } from "../types";
 
 import "./Receive.css";
@@ -33,12 +34,10 @@ function Receive() {
   const [answering, setAnswering] = useState(false);
   const answers = useMemo(() => parseAnswer(answerText, message.length), [answerText, message.length]);
 
-  const generateNewSeries = useCallback(() => {
-    setMessage(createMessage(characters, length));
-    setAnswerText("");
-  }, [characters, length]);
-
-  const play = useCallback(() => {
+  /** Creates a new message and starts playing it. */
+  const start = useCallback(() => {
+    const next = createMessage(characters, length);
+    setMessage(next);
     setPlayed({ characterSpeed, effectiveSpeed });
     if (keyboard) {
       // A phone only opens its keyboard when the focus is given in the press of a button
@@ -47,8 +46,8 @@ function Receive() {
       setAnswerText("");
       setAnswering(true);
     }
-    startPlayback();
-  }, [characterSpeed, effectiveSpeed, keyboard, startPlayback]);
+    startPlayback(chunkArray(next, 5));
+  }, [characters, length, characterSpeed, effectiveSpeed, keyboard, startPlayback]);
 
   const stop = useCallback(() => {
     stopPlayback();
@@ -144,19 +143,15 @@ function Receive() {
         />
       </Options>
       <div className="App-buttons">
-        <Button disabled={busy} onClick={generateNewSeries}>
-          Uusi sarja
-        </Button>
-        <Button disabled={busy || message.length === 0} onClick={play}>
-          Toista
+        <Button disabled={busy} onClick={start}>
+          Aloita
         </Button>
         <Button disabled={!busy} onClick={stop}>
-          {answering && !playing ? "Valmis" : "Pysäytä"}
+          {answering && !playing ? "Valmis" : "Lopeta"}
         </Button>
       </div>
-      {!playing && message.length === 0 && <p className="App-status">Aloita luomalla uusi sarja.</p>}
-      {!playing && !stopped && message.length > 0 && <p className="App-status">Sarja valmis toistettavaksi.</p>}
-      {keyboard && message.length > 0 && (
+      {!busy && !stopped && <p className="App-status">Aloita, niin saat uuden sarjan ja sen toisto alkaa.</p>}
+      {keyboard && (
         <div className={answering ? "" : "Receive-hidden"}>
           {!playing && <p className="App-status">Sanoma päättyi. Kirjoita vastaus loppuun ja paina Valmis.</p>}
           <AnswerInput
