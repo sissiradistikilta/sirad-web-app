@@ -357,6 +357,16 @@ describe("App", () => {
     group.forEach((character) => expect(character).toMatch(/^[0-9]$/));
   });
 
+  it("shows the commit of the build when it is given, as in the preview of a pull request", () => {
+    const { unmount } = render(<App />);
+    expect(screen.queryByTitle("Version commit")).not.toBeInTheDocument();
+    unmount();
+
+    render(<App commit="1cb9b7" />);
+    expect(screen.getByTitle("Version commit")).toHaveTextContent("1cb9b7");
+    expect(screen.getByRole("heading", { name: /SiRad Web/ })).toContainElement(screen.getByTitle("Version commit"));
+  });
+
   it("has the Live mode only when live keying is in use", () => {
     const { unmount } = render(<App />);
     expect(screen.queryByRole("tab", { name: "Live" })).not.toBeInTheDocument();

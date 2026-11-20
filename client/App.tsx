@@ -20,13 +20,15 @@ interface Props {
   apiUrl?: string;
   /** The timing of the connection to the backend, if other than the default. */
   connection?: ConnectionOptions;
+  /** The start of the hash of the commit of the build, shown to tell the previews of pull requests apart. */
+  commit?: string;
 }
 
 /** The mode is kept in the address (#anto), so that it survives a reload and can be linked to. */
 const getMode = (modes: typeof MODES) =>
   modes.find(({ value }) => `#${value}` === window.location.hash)?.value ?? modes[0].value;
 
-function App({ live = __LIVE_ENABLED__, apiUrl = __API_URL__, connection }: Props) {
+function App({ live = __LIVE_ENABLED__, apiUrl = __API_URL__, connection, commit = __COMMIT__ }: Props) {
   const modes = useMemo(() => MODES.filter(({ value }) => live || value !== "live"), [live]);
   const [selected, setMode] = useState(() => getMode(modes));
   // A mode that is not in use is not shown, even if it was selected
@@ -58,7 +60,14 @@ function App({ live = __LIVE_ENABLED__, apiUrl = __API_URL__, connection }: Prop
     <div className="App">
       <h1>
         SiRad Web
-        {connected !== null && <ConnectionStatus connected={connected} />}
+        <span className="App-indicators">
+          {commit && (
+            <span className="App-commit" title="Version commit">
+              {commit}
+            </span>
+          )}
+          {connected !== null && <ConnectionStatus connected={connected} />}
+        </span>
       </h1>
       <p>Harjoittele sähkötystä tietokoneellasi tai puhelimellasi.</p>
       <Tabs label="Harjoitus" onChange={selectMode} options={modes} selected={mode} />
