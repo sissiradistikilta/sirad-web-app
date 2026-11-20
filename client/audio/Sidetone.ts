@@ -6,11 +6,8 @@ import { TONE_FREQUENCY, TONE_GAIN } from "./MorsePlayer";
  */
 export const KEYING_TIME_CONSTANT = 0.0017;
 
-/** How many times the delay of the audio is measured as the audio starts, and how often, in milliseconds. */
-const CALIBRATION_SAMPLES = 12;
-const CALIBRATION_INTERVAL = 7;
-/** How many of the latest measurements of the delay of the audio are used. */
-const LEAD_SAMPLES = 24;
+/** After this long without the key being used, the next press is timed from a clean start, in milliseconds. */
+const BURST_IDLE = 1500;
 
 /**
  * The tone of a Morse key: sounds for as long as the key is down.
@@ -30,8 +27,9 @@ class Sidetone {
   private gain: GainNode | null = null;
   /** The gain of the keying that comes from elsewhere. */
   private scheduled: GainNode | null = null;
-  /** How far ahead of what is heard the audio has lately been scheduled, in seconds. See timeOf. */
-  private leads: number[] = [];
+  /** The difference of the audio clock and the clock of the events of the key, in seconds. See timeOf. */
+  private offset: number | null = null;
+  private lastEvent = 0;
 
   /**
    * Starts the audio. Must be called from a user interaction (e.g. a press of the key),
@@ -42,7 +40,7 @@ class Sidetone {
       // The smallest delay the device can do. By default a browser plays the audio in larger blocks to
       // save power, which makes the tone follow the key several times later (e.g. 40 ms instead of 10 ms).
       this.context = new window.AudioContext({ latencyHint: 0 });
-      this.leads = [];
+      this.offset = null;
       this.oscillator = this.context.createOscillator();
       this.gain = this.context.createGain();
       this.scheduled = this.context.createGain();
@@ -60,20 +58,8 @@ class Sidetone {
     }
 
     if (this.context.state !== "running") {
-      this.context.resume().then(
-        () => this.calibrate(CALIBRATION_SAMPLES),
-        () => undefined
-      );
+      this.context.resume().catch(() => undefined);
     }
-  }
-
-  /** Measures the delay of the audio a few times as it starts, for the first presses to be timed right. */
-  private calibrate(samples: number) {
-    const context = this.context;
-    if (!context || context.state !== "running" || typeof context.getOutputTimestamp !== "function") return;
-
-    this.timeOf(performance.now());
-    if (samples > 1) window.setTimeout(() => this.calibrate(samples - 1), CALIBRATION_INTERVAL);
   }
 
   /**
@@ -132,26 +118,32 @@ class Sidetone {
    *
    * The audio clock advances a block of audio at a time, about 3-10 ms depending on the device. If the key
    * were simply moved "now", the presses and the releases would land on the edges of the blocks, and the
-   * length of a tone would be up to a block off. That is a lot for a dot, which can be 40 ms. That is why the
-   * key is moved at the time of the event itself, a constant moment later: every tone is as long as its press.
+   * lengths of the tones and of the gaps between them would be up to a block off. That is a lot for a dot,
+   * which can be 40 ms.
+   *
+   * That is why the first press of a burst of keying sets the two clocks side by side, one block ahead, and
+   * the events after it are played by their own times. Every tone and every gap is then exactly as long
+   * as it was keyed.
    */
   private timeOf(eventTime?: number) {
     const context = this.context;
     if (!context) return 0;
 
     const now = context.currentTime;
-    if (eventTime === undefined || typeof context.getOutputTimestamp !== "function") return now;
+    if (eventTime === undefined) {
+      this.offset = null;
+      return now;
+    }
 
-    // The same moment on the clock of the audio and on the clock of the events
-    const { contextTime, performanceTime } = context.getOutputTimestamp();
-    if (!contextTime || !performanceTime) return now;
-    const heardAt = (time: number) => contextTime + (time - performanceTime) / 1000;
+    const seconds = eventTime / 1000;
+    const continues = this.offset !== null && eventTime - this.lastEvent < BURST_IDLE;
+    this.lastEvent = eventTime;
+    if (continues && this.offset !== null && seconds + this.offset >= now) return seconds + this.offset;
 
-    // What is scheduled now is heard a moment later. The longest such moment seen lately is the constant
-    // delay. Only the latest ones count, so that the delay also gets shorter, e.g. when the device changes.
-    this.leads.push(now - heardAt(performance.now()));
-    if (this.leads.length > LEAD_SAMPLES) this.leads.shift();
-    return Math.max(now, heardAt(eventTime) + Math.max(...this.leads));
+    // The first event of a burst, or the events have fallen behind the audio: a new start
+    const block = Math.min(Math.max(context.baseLatency || 0.005, 0.003), 0.02);
+    this.offset = now + block - seconds;
+    return now + block;
   }
 }
 
