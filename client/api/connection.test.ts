@@ -140,6 +140,72 @@ describe("ApiConnection", () => {
     connection.close();
   });
 
+  it("tries again later if a connection cannot even be started", () => {
+    let fail = true;
+    vi.stubGlobal(
+      "WebSocket",
+      class extends FakeSocket {
+        constructor(url: string) {
+          if (fail) throw new Error("not allowed");
+          super(url);
+        }
+      }
+    );
+    const connection = new ApiConnection("ws://localhost:4001/ws", onChange);
+    expect(FakeSocket.instances).toHaveLength(0);
+
+    fail = false;
+    vi.advanceTimersByTime(RECONNECT_DELAYS[0]);
+    expect(FakeSocket.instances).toHaveLength(1);
+    latest().open();
+    expect(onChange.mock.calls).toEqual([[true]]);
+    connection.close();
+  });
+
+  it("does not tell about a lost connection when an attempt to connect fails", () => {
+    const connection = new ApiConnection("ws://localhost:4001/ws", onChange);
+    latest().onerror?.();
+    latest().close();
+    vi.advanceTimersByTime(RECONNECT_DELAYS[0]);
+    latest().close();
+
+    expect(onChange).not.toHaveBeenCalled();
+    expect(FakeSocket.instances).toHaveLength(2);
+    connection.close();
+  });
+
+  it("uses the timing it is given", () => {
+    const connection = new ApiConnection("ws://localhost:4001/ws", onChange, undefined, {
+      reconnectDelays: [10],
+      pingInterval: 100,
+      pongTimeout: 20
+    });
+    latest().open();
+    vi.advanceTimersByTime(100);
+    expect(latest().sent).toHaveLength(1);
+    vi.advanceTimersByTime(20);
+    expect(onChange).toHaveBeenLastCalledWith(false);
+    vi.advanceTimersByTime(10);
+    expect(FakeSocket.instances).toHaveLength(2);
+    connection.close();
+  });
+
+  it("ignores what an old connection still tells after a new one was opened", () => {
+    const connection = new ApiConnection("ws://localhost:4001/ws", onChange);
+    const old = latest();
+    old.open();
+    old.close();
+    vi.advanceTimersByTime(RECONNECT_DELAYS[0]);
+    onChange.mockClear();
+
+    old.onopen?.();
+    old.onmessage?.({ data: JSON.stringify({ type: "hello" }) });
+    old.onclose?.();
+    expect(onChange).not.toHaveBeenCalled();
+    expect(FakeSocket.instances).toHaveLength(2);
+    connection.close();
+  });
+
   it("does not connect again after it is closed", () => {
     const connection = new ApiConnection("ws://localhost:4001/ws", onChange);
     latest().open();

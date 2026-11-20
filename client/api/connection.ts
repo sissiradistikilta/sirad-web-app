@@ -11,6 +11,13 @@ export interface ApiMessage {
   [key: string]: unknown;
 }
 
+export interface ConnectionOptions {
+  /** How long to wait before connecting again, in milliseconds: the next one after each failed attempt. */
+  reconnectDelays?: number[];
+  pingInterval?: number;
+  pongTimeout?: number;
+}
+
 /** The address of the WebSocket API of a backend, e.g. https://api.sirad.fi -> wss://api.sirad.fi/ws. */
 export function toSocketUrl(apiUrl: string) {
   const url = new URL(apiUrl);
@@ -34,17 +41,25 @@ class ApiConnection {
   private reconnectTimer: number | null = null;
   private pingTimer: number | null = null;
   private pongTimer: number | null = null;
+  private readonly reconnectDelays: number[];
+  private readonly pingInterval: number;
+  private readonly pongTimeout: number;
 
   /**
    * @param url The address of the WebSocket API.
    * @param onChange Called when the connection is opened or lost.
    * @param onMessage Called with each message of the backend, except the answers to the pings.
+   * @param options The timing of the connection, if other than the default.
    */
   constructor(
     private readonly url: string,
     private readonly onChange: (connected: boolean) => void,
-    private readonly onMessage: (message: ApiMessage) => void = () => undefined
+    private readonly onMessage: (message: ApiMessage) => void = () => undefined,
+    options: ConnectionOptions = {}
   ) {
+    this.reconnectDelays = options.reconnectDelays ?? RECONNECT_DELAYS;
+    this.pingInterval = options.pingInterval ?? PING_INTERVAL;
+    this.pongTimeout = options.pongTimeout ?? PONG_TIMEOUT;
     this.connect();
   }
 
@@ -78,11 +93,13 @@ class ApiConnection {
     }
     this.socket = socket;
 
+    let opened = false;
     socket.onopen = () => {
       if (socket !== this.socket) return;
+      opened = true;
       this.attempts = 0;
       this.onChange(true);
-      this.pingTimer = window.setInterval(() => this.ping(socket), PING_INTERVAL);
+      this.pingTimer = window.setInterval(() => this.ping(socket), this.pingInterval);
     };
     socket.onmessage = (event) => {
       if (socket !== this.socket) return;
@@ -106,7 +123,8 @@ class ApiConnection {
       if (socket !== this.socket) return;
       this.socket = null;
       this.clearTimers();
-      this.onChange(false);
+      // A failed attempt to connect is not a lost connection
+      if (opened) this.onChange(false);
       this.retry();
     };
     // An error is followed by a close, which is where the connection is opened again
@@ -117,13 +135,13 @@ class ApiConnection {
     if (socket !== this.socket || socket.readyState !== WebSocket.OPEN) return;
 
     socket.send(JSON.stringify({ type: "ping" }));
-    if (this.pongTimer === null) this.pongTimer = window.setTimeout(() => socket.close(), PONG_TIMEOUT);
+    if (this.pongTimer === null) this.pongTimer = window.setTimeout(() => socket.close(), this.pongTimeout);
   }
 
   private retry() {
     if (this.closed || this.reconnectTimer !== null) return;
 
-    const delay = RECONNECT_DELAYS[Math.min(this.attempts, RECONNECT_DELAYS.length - 1)];
+    const delay = this.reconnectDelays[Math.min(this.attempts, this.reconnectDelays.length - 1)];
     this.attempts += 1;
     this.reconnectTimer = window.setTimeout(() => {
       this.reconnectTimer = null;

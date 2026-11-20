@@ -13,6 +13,12 @@ import { Api } from "./useApiConnection";
  */
 export const PLAYOUT_DELAY = 0.15;
 
+/**
+ * How long the user is shown as transmitting after the key was released, in milliseconds. It is the time
+ * the backend keeps the frequency for the one who keyed last (RELEASE_DELAY in server/channels.ts).
+ */
+export const TRANSMIT_HOLD = 500;
+
 const isHolder = (value: unknown): value is Holder => value === "self" || value === "other" || value === null;
 
 /**
@@ -23,11 +29,13 @@ const isHolder = (value: unknown): value is Holder => value === "self" || value 
  */
 const useLive = (api: Api, frequency: number | null) => {
   const { connected, send, subscribe } = api;
-  /** The tone of the own key, and the tone of the keying of the others. */
-  const local = useRef<Sidetone | null>(null);
-  const remote = useRef<Sidetone | null>(null);
+  /** The tone of the own key and of the keying of the others, on one audio output. */
+  const tone = useRef<Sidetone | null>(null);
   const [channel, setChannel] = useState<LiveChannel | null>(null);
   const [keyIsDown, setKeyIsDown] = useState(false);
+  /** The key was released a moment ago: the transmission is still on. */
+  const [holding, setHolding] = useState(false);
+  const holdTimer = useRef<number | null>(null);
   const down = useRef(false);
   const holder = useRef<Holder>(null);
   const joined = useRef(false);
@@ -35,17 +43,25 @@ const useLive = (api: Api, frequency: number | null) => {
   const offset = useRef<number | null>(null);
   const scheduled = useRef(0);
 
-  const release = useCallback(() => {
-    local.current?.keyUp();
+  const release = useCallback((time?: number) => {
+    tone.current?.keyUp(time);
     down.current = false;
     setKeyIsDown(false);
   }, []);
 
+  /** Ends the transmission right away, e.g. when someone else got the frequency or the frequency is left. */
+  const endTransmission = useCallback(() => {
+    if (holdTimer.current !== null) window.clearTimeout(holdTimer.current);
+    holdTimer.current = null;
+    setHolding(false);
+    if (down.current) release();
+  }, [release]);
+
   /** Plays a press or a release of the key of someone else. */
   const play = useCallback((keyDown: boolean, t: number | null) => {
-    const tone = (remote.current ??= new Sidetone());
-    tone.prepare();
-    const now = tone.currentTime;
+    const output = (tone.current ??= new Sidetone());
+    output.prepare();
+    const now = output.currentTime;
     // The audio has not been allowed to start yet: there is nothing to hear
     if (now === null) return;
 
@@ -58,7 +74,7 @@ const useLive = (api: Api, frequency: number | null) => {
     // The events are played in the order they were sent
     time = Math.max(time, scheduled.current, now);
     scheduled.current = time;
-    tone.keyAt(keyDown, time);
+    output.keyAt(keyDown, time);
   }, []);
 
   useEffect(() => {
@@ -74,7 +90,7 @@ const useLive = (api: Api, frequency: number | null) => {
         // The next transmission of someone is timed by its own clock
         if (message.holder !== "other") offset.current = null;
         // Someone else got the frequency first
-        if (message.holder === "other" && down.current) release();
+        if (message.holder === "other") endTransmission();
       } else if (message.type === "key" && joined.current) {
         if (typeof message.down !== "boolean") return;
         play(message.down, typeof message.t === "number" ? message.t : null);
@@ -89,22 +105,26 @@ const useLive = (api: Api, frequency: number | null) => {
       holder.current = null;
       offset.current = null;
       scheduled.current = 0;
-      const now = remote.current?.currentTime;
-      if (now !== null && now !== undefined) remote.current?.keyAt(false, now);
-      release();
+      const now = tone.current?.currentTime;
+      if (now !== null && now !== undefined) tone.current?.keyAt(false, now);
+      endTransmission();
       setChannel(null);
     };
-  }, [connected, frequency, send, subscribe, play, release]);
+  }, [connected, frequency, send, subscribe, play, endTransmission]);
 
   /** The key went down. The time is in milliseconds on the clock of performance.now(). */
   const keyDown = useCallback(
     (time: number) => {
       if (!joined.current || holder.current === "other" || down.current) return;
 
-      local.current ??= new Sidetone();
-      local.current.keyDown();
+      // The tone of the own key is played right away, it does not wait for the backend
+      tone.current ??= new Sidetone();
+      tone.current.keyDown(time);
       down.current = true;
       setKeyIsDown(true);
+      if (holdTimer.current !== null) window.clearTimeout(holdTimer.current);
+      holdTimer.current = null;
+      setHolding(true);
       send({ type: "key", down: true, t: time });
     },
     [send]
@@ -114,7 +134,11 @@ const useLive = (api: Api, frequency: number | null) => {
     (time: number) => {
       if (!down.current) return;
 
-      release();
+      release(time);
+      holdTimer.current = window.setTimeout(() => {
+        holdTimer.current = null;
+        setHolding(false);
+      }, TRANSMIT_HOLD);
       send({ type: "key", down: false, t: time });
     },
     [send, release]
@@ -124,10 +148,8 @@ const useLive = (api: Api, frequency: number | null) => {
   // That is why it is started as soon as the browser allows it: after the user has done anything on the page.
   useEffect(() => {
     const prepare = () => {
-      local.current ??= new Sidetone();
-      local.current.prepare();
-      remote.current ??= new Sidetone();
-      remote.current.prepare();
+      tone.current ??= new Sidetone();
+      tone.current.prepare();
     };
     if (navigator.userActivation?.hasBeenActive) prepare();
     window.addEventListener("pointerdown", prepare, { capture: true, once: true });
@@ -136,22 +158,27 @@ const useLive = (api: Api, frequency: number | null) => {
     return () => {
       window.removeEventListener("pointerdown", prepare, { capture: true });
       window.removeEventListener("keydown", prepare, { capture: true });
-      local.current?.dispose();
-      remote.current?.dispose();
-      local.current = null;
-      remote.current = null;
+      tone.current?.dispose();
+      tone.current = null;
     };
   }, []);
 
+  // What was told about a frequency holds only while connected and on that frequency. The state is cleared
+  // a moment after either changes, and nothing of the old situation is shown meanwhile.
+  const current = connected && channel?.frequency === frequency ? channel : null;
+
   return {
-    channel,
+    channel: current,
     keyDown,
     keyIsDown,
     keyUp,
     /** Someone else is keying on the frequency: the key cannot be used. */
-    receiving: channel?.holder === "other",
-    /** The user is keying, or has the frequency after keying. */
-    transmitting: keyIsDown || channel?.holder === "self"
+    receiving: current?.holder === "other",
+    /**
+     * The user is keying, or released the key less than half a second ago. This is told by the key of the user
+     * and not by the backend, so that it is on from the very moment the key goes down.
+     */
+    transmitting: current !== null && current.holder !== "other" && (keyIsDown || holding)
   };
 };
 

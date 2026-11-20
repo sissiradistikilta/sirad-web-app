@@ -134,6 +134,48 @@ describe("Channels", () => {
     expect(take("b")).toEqual([{ type: "key", down: false, t: MAX_KEY_DOWN }, state(2, null)]);
   });
 
+  it("tells the situation again to a member that joins the frequency it is already on", () => {
+    channels.join("a", FREQUENCY);
+    channels.join("b", FREQUENCY);
+    channels.key("b", true, 0);
+    ["a", "b"].forEach(take);
+
+    channels.join("a", FREQUENCY);
+    expect(take("a")).toEqual([state(2, "other")]);
+    expect(take("b")).toEqual([]);
+    expect(channels.users(FREQUENCY)).toBe(2);
+  });
+
+  it("ignores the keying of one who is on no frequency, and what does not change anything", () => {
+    channels.key("nobody", true, 0);
+    channels.leave("nobody");
+    expect(received).toEqual({});
+    expect(channels.users(FREQUENCY)).toBe(0);
+
+    channels.join("a", FREQUENCY);
+    channels.join("b", FREQUENCY);
+    ["a", "b"].forEach(take);
+
+    // A release without a press, and a press that is told twice
+    channels.key("a", false, 0);
+    expect(take("b")).toEqual([]);
+    channels.key("a", true, 10);
+    channels.key("a", true, 20);
+    expect(take("b")).toEqual([state(2, "other"), { type: "key", down: true, t: 10 }]);
+  });
+
+  it("forgets a frequency when the last one leaves it", () => {
+    channels.join("a", FREQUENCY);
+    channels.key("a", true, 0);
+    channels.leave("a");
+    take("a");
+
+    // The timers of the frequency are gone with it
+    vi.advanceTimersByTime(MAX_KEY_DOWN);
+    expect(take("a")).toEqual([]);
+    expect(channels.users(FREQUENCY)).toBe(0);
+  });
+
   it("moves a member from a frequency to another", () => {
     channels.join("a", FREQUENCY);
     channels.join("b", FREQUENCY);

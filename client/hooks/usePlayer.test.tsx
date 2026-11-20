@@ -166,4 +166,18 @@ describe("usePlayer", () => {
     const [attack, , release] = context().gains[0].gain.events.slice(15 * 4);
     expect(release.time - attack.time).toBeCloseTo((3 * 60) / (9 * 160), 9);
   });
+
+  it("is not playing when the audio cannot be started", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const failure = new Error("no audio");
+    vi.spyOn(window, "AudioContext").mockImplementation(function () {
+      throw failure;
+    });
+    const hook = render();
+
+    await start(hook);
+    expect(hook.result.current.playing).toBe(false);
+    expect(error).toHaveBeenCalledWith("Cannot start the audio playback", failure);
+    vi.restoreAllMocks();
+  });
 });

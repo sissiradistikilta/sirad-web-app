@@ -5,10 +5,12 @@ import { act, cleanup, createEvent, fireEvent, render, screen } from "@testing-l
 import { AudioContextMock } from "../test/audio-context-mock";
 
 import App from "./App";
-import { MORSE_CODES } from "./constants";
+import { CHARACTER_SETS, MORSE_CODES } from "./constants";
 import { MorseCharacter } from "./types";
 
 const STEP = 0.005;
+/** The set of characters with only the numbers. */
+const NUMBERS = CHARACTER_SETS[CHARACTER_SETS.length - 1].value;
 
 function advance(seconds: number) {
   for (let time = 0; time < seconds - STEP / 2; time += STEP) {
@@ -320,21 +322,60 @@ describe("App", () => {
     });
   });
 
+  it("makes the series of the receiving exercise by the settings", async () => {
+    render(<App />);
+    fireEvent.change(screen.getByLabelText("Merkkien nopeus"), { target: { value: "100" } });
+    fireEvent.change(screen.getByLabelText("Merkit"), { target: { value: NUMBERS } });
+    fireEvent.change(screen.getByLabelText("Pituus"), { target: { value: "250" } });
+    fireEvent.change(screen.getByLabelText("Tila"), { target: { value: "harjoittelu" } });
+    expect(screen.getByLabelText("Merkit")).toHaveValue(NUMBERS);
+    expect(screen.getByLabelText("Merkkien nopeus")).toHaveValue("100");
+    await play();
+
+    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuemax", "50");
+    // The start of the message takes 52 units of 60 / (9 * 100) seconds at this speed
+    act(() => advance(0.1 + (52 * 60) / (9 * 100) + 0.1));
+    expect(screen.getByText("Toistetaan ryhmää 1 / 50")).toBeInTheDocument();
+    // Only numbers were asked for
+    const groups = Array.from(document.querySelectorAll(".Results-group"), (group) => group.textContent ?? "");
+    expect(groups).toHaveLength(50);
+    groups.forEach((group) => expect(group).toMatch(/^[0-9]{5}$/));
+    expect(document.querySelector(".Results-caption")).toHaveTextContent("100 merkkiä/min");
+  });
+
+  it("makes the series of the sending exercise by the settings", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("tab", { name: "Anto" }));
+    fireEvent.change(screen.getByLabelText("Nopeus"), { target: { value: "100" } });
+    fireEvent.change(screen.getByLabelText("Merkit"), { target: { value: NUMBERS } });
+    fireEvent.change(screen.getByLabelText("Pituus"), { target: { value: "250" } });
+    fireEvent.click(button("Aloita"));
+
+    expect(screen.getByText("Ryhmä 1 / 50")).toBeInTheDocument();
+    const group = Array.from(screen.getByLabelText("Sähkötettävä ryhmä").children).map((item) => item.textContent);
+    expect(group).toHaveLength(5);
+    group.forEach((character) => expect(character).toMatch(/^[0-9]$/));
+  });
+
   it("has the Live mode only when live keying is in use", () => {
     const { unmount } = render(<App />);
     expect(screen.queryByRole("tab", { name: "Live" })).not.toBeInTheDocument();
     unmount();
 
-    // The mode is not opened from the address either
-    window.history.replaceState(null, "", "#live");
+    // The mode is not opened from the address either, and the address does not keep pointing to it
+    window.history.replaceState(null, "", "/pr-20/#live");
     render(<App />);
     expect(screen.getByRole("tab", { name: "Vastaanotto" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.queryByLabelText("Taajuus (MHz)")).not.toBeInTheDocument();
+    expect(window.location.pathname + window.location.hash).toBe("/pr-20/");
     cleanup();
 
+    window.history.replaceState(null, "", "/pr-20/#live");
     render(<App live />);
     expect(screen.getByRole("tab", { name: "Live" })).toHaveAttribute("aria-selected", "true");
+    expect(window.location.pathname + window.location.hash).toBe("/pr-20/#live");
     expect(screen.getByLabelText("Taajuus (MHz)")).toBeInTheDocument();
-    window.history.replaceState(null, "", window.location.pathname);
+    window.history.replaceState(null, "", "/");
   });
 
   it("shows the receiving exercise first, and the sending exercise from its tab", () => {
@@ -350,6 +391,25 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Vastaanotto" }));
     expect(screen.getByLabelText("Tehollinen nopeus")).toBeInTheDocument();
     expect(window.location.hash).toBe("");
+  });
+
+  it("keeps the path of the page when the mode is changed, e.g. in the preview of a pull request", () => {
+    // The page has a base address, against which a relative address would be resolved
+    const base = document.createElement("base");
+    base.href = "/";
+    document.head.appendChild(base);
+    window.history.replaceState(null, "", "/pr-20/?debug=1");
+    render(<App live />);
+
+    fireEvent.click(screen.getByRole("tab", { name: "Live" }));
+    expect(window.location.pathname + window.location.search + window.location.hash).toBe("/pr-20/?debug=1#live");
+    fireEvent.click(screen.getByRole("tab", { name: "Anto" }));
+    expect(window.location.pathname + window.location.search + window.location.hash).toBe("/pr-20/?debug=1#anto");
+    fireEvent.click(screen.getByRole("tab", { name: "Vastaanotto" }));
+    expect(window.location.pathname + window.location.search + window.location.hash).toBe("/pr-20/?debug=1");
+
+    base.remove();
+    window.history.replaceState(null, "", "/");
   });
 
   it("opens the sending exercise from the address", () => {

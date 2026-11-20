@@ -38,7 +38,7 @@ const useKeyer = (characterSpeed: number, onCharacter: (pattern: string) => void
       if (decoder.keyIsDown) return;
 
       sidetone.current ??= new Sidetone();
-      sidetone.current.keyDown();
+      sidetone.current.keyDown(time);
       clearTimer();
       complete(decoder.keyDown(time));
       setKeyIsDown(true);
@@ -50,7 +50,7 @@ const useKeyer = (characterSpeed: number, onCharacter: (pattern: string) => void
     (time: number) => {
       if (!decoder.keyIsDown) return;
 
-      sidetone.current?.keyUp();
+      sidetone.current?.keyUp(time);
       decoder.keyUp(time);
       setPattern(decoder.pattern);
       setKeyIsDown(false);
