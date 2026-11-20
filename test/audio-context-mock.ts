@@ -60,7 +60,7 @@ export class AudioContextMock {
   addEventListener = vi.fn();
   removeEventListener = vi.fn();
 
-  constructor() {
+  constructor(public options?: AudioContextOptions) {
     AudioContextMock.instances.push(this);
   }
 

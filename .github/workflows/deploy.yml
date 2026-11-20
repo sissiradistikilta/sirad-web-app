@@ -35,6 +35,8 @@ jobs:
           API_URL: ${{ vars.API_URL }}
           # Live keying is always on in the previews of pull requests, in production by the variable
           LIVE_ENABLED: ${{ github.event_name == 'pull_request' && 'true' || vars.LIVE_ENABLED }}
+          # The previews of pull requests show which commit they were built of
+          COMMIT_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || '' }}
 
       - run: git config --global user.email "github-actions[bot]@users.noreply.github.com"
       - run: git config --global user.name "github-actions[bot]"

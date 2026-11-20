@@ -9,6 +9,8 @@ export const KEYING_TIME_CONSTANT = 0.0017;
 /** How many times the delay of the audio is measured as the audio starts, and how often, in milliseconds. */
 const CALIBRATION_SAMPLES = 12;
 const CALIBRATION_INTERVAL = 7;
+/** How many of the latest measurements of the delay of the audio are used. */
+const LEAD_SAMPLES = 24;
 
 /**
  * The tone of a Morse key: sounds for as long as the key is down.
@@ -28,8 +30,8 @@ class Sidetone {
   private gain: GainNode | null = null;
   /** The gain of the keying that comes from elsewhere. */
   private scheduled: GainNode | null = null;
-  /** How far ahead of what is heard the audio is scheduled, in seconds. See timeOf. */
-  private lead = 0;
+  /** How far ahead of what is heard the audio has lately been scheduled, in seconds. See timeOf. */
+  private leads: number[] = [];
 
   /**
    * Starts the audio. Must be called from a user interaction (e.g. a press of the key),
@@ -37,8 +39,10 @@ class Sidetone {
    */
   prepare() {
     if (!this.context || this.context.state === "closed") {
-      this.context = new window.AudioContext();
-      this.lead = 0;
+      // The smallest delay the device can do. By default a browser plays the audio in larger blocks to
+      // save power, which makes the tone follow the key several times later (e.g. 40 ms instead of 10 ms).
+      this.context = new window.AudioContext({ latencyHint: 0 });
+      this.leads = [];
       this.oscillator = this.context.createOscillator();
       this.gain = this.context.createGain();
       this.scheduled = this.context.createGain();
@@ -143,9 +147,11 @@ class Sidetone {
     if (!contextTime || !performanceTime) return now;
     const heardAt = (time: number) => contextTime + (time - performanceTime) / 1000;
 
-    // What is scheduled now is heard a moment later. The longest such moment seen is the constant delay.
-    this.lead = Math.max(this.lead, now - heardAt(performance.now()));
-    return Math.max(now, heardAt(eventTime) + this.lead);
+    // What is scheduled now is heard a moment later. The longest such moment seen lately is the constant
+    // delay. Only the latest ones count, so that the delay also gets shorter, e.g. when the device changes.
+    this.leads.push(now - heardAt(performance.now()));
+    if (this.leads.length > LEAD_SAMPLES) this.leads.shift();
+    return Math.max(now, heardAt(eventTime) + Math.max(...this.leads));
   }
 }
 
