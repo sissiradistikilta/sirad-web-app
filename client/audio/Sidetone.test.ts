@@ -69,4 +69,20 @@ describe("Sidetone", () => {
     expect(AudioContextMock.instances).toHaveLength(2);
     expect(AudioContextMock.instances[1].gains[0].gain.events).toHaveLength(1);
   });
+
+  it("keys at a given time of the audio clock, but not in the past", async () => {
+    expect(sidetone.currentTime).toBeNull();
+    sidetone.prepare();
+    await Promise.resolve();
+    context().currentTime = 2;
+    expect(sidetone.currentTime).toBe(2);
+
+    sidetone.keyAt(true, 2.15);
+    sidetone.keyAt(false, 1);
+
+    expect(gain().events).toEqual([
+      { type: "setTarget", value: TONE_GAIN, time: 2.15 },
+      { type: "setTarget", value: 0, time: 2 }
+    ]);
+  });
 });

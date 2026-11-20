@@ -1,0 +1,95 @@
+/* Room for the key at the bottom of the screen of a phone */
+.Live {
+  padding-bottom: max(32vh, 150px);
+}
+
+.Live-radio {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.Live-frequency {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.Live-frequency label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 14px;
+}
+
+.Live-frequency input {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 220px;
+  padding: 8px 14px;
+  font-family: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  /* At least 16px, so that a phone does not zoom in to the field */
+  font-size: 24px;
+  font-weight: bold;
+  color: black;
+  background-color: rgba(85, 107, 47, 0.1);
+  border: 2px solid #556b2f;
+  border-radius: 8px;
+}
+
+.Live-frequency input[aria-invalid="true"] {
+  border-color: #c0392b;
+}
+
+.Live-frequency input:focus-visible {
+  outline: 2px solid black;
+  outline-offset: 2px;
+}
+
+.Live-lamps {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
+.Live-lamp {
+  min-width: 2.6em;
+  padding: 10px 8px;
+  font-size: 16px;
+  font-weight: bold;
+  text-align: center;
+  color: #777;
+  background-color: rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  user-select: none;
+  -webkit-user-select: none;
+  transition:
+    background-color 0.1s,
+    color 0.1s;
+}
+
+.Live-lamp-rx.Live-lamp-on {
+  color: white;
+  background-color: #3f8f3f;
+}
+
+.Live-lamp-tx.Live-lamp-on {
+  color: white;
+  background-color: #c0392b;
+}
+
+.Live-help {
+  font-size: 14px;
+  color: #555;
+}
+
+/* With a mouse on a large screen: the key is in the page, not at the bottom of the screen */
+@media screen and (min-width: 600px) and (min-height: 500px) and (pointer: fine) {
+  .Live {
+    padding-bottom: 0;
+  }
+
+  .Live-help {
+    margin-bottom: 20px;
+  }
+}

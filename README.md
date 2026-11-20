@@ -32,6 +32,17 @@ The backend (`server`) has a WebSocket API at `/ws` and a health check at `/heal
 | `ALLOWED_ORIGINS` | backend  | The addresses that are allowed to use the API, separated with commas, e.g. `https://cw.sirad.fi`. Everything is allowed if it is not set.                                                                        |
 | `SERVE_FRONTEND`  | backend  | `true` makes the backend also serve the built frontend from `dist`.                                                                                                                                              |
 
+### Live keying
+
+In the Live mode those who are on the same frequency hear the keying of each other. The frequency is only a name of a group in the backend (`server/channels.ts`): 1.5-30 MHz in steps of 100 Hz.
+
+- A client goes to a frequency with `{ "type": "join", "frequency": 3685000 }` and leaves it with `{ "type": "leave" }`.
+- A press or a release of the key is `{ "type": "key", "down": true, "t": 1234.5 }`, where `t` is the time in milliseconds on the clock of the client. The backend passes it on to the others on the frequency, not back to the sender.
+- Only one can key at a time. The first press reserves the frequency, and it is freed half a second after the key was last released. The keying of the others is ignored meanwhile.
+- The backend tells about the frequency with `{ "type": "channel", "frequency": 3685000, "users": 2, "holder": "other" }`, where `holder` is `"self"`, `"other"` or `null`.
+
+The listeners play the keying by the times of the sender, 150 ms late (`client/hooks/useLive.ts`). That keeps the rhythm of the keying even though the messages arrive unevenly.
+
 ### Deploys
 
 - `.github/workflows/deploy.yml` builds the frontend and deploys it to GitHub Pages: production from `main` and a preview for each pull request.

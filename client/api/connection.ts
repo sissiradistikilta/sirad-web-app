@@ -5,6 +5,12 @@ export const PING_INTERVAL = 25000;
 /** How long the answer to a ping is waited for, in milliseconds. */
 export const PONG_TIMEOUT = 10000;
 
+/** A message of the WebSocket API: a JSON object with a type. */
+export interface ApiMessage {
+  type: string;
+  [key: string]: unknown;
+}
+
 /** The address of the WebSocket API of a backend, e.g. https://api.sirad.fi -> wss://api.sirad.fi/ws. */
 export function toSocketUrl(apiUrl: string) {
   const url = new URL(apiUrl);
@@ -32,12 +38,21 @@ class ApiConnection {
   /**
    * @param url The address of the WebSocket API.
    * @param onChange Called when the connection is opened or lost.
+   * @param onMessage Called with each message of the backend, except the answers to the pings.
    */
   constructor(
     private readonly url: string,
-    private readonly onChange: (connected: boolean) => void
+    private readonly onChange: (connected: boolean) => void,
+    private readonly onMessage: (message: ApiMessage) => void = () => undefined
   ) {
     this.connect();
+  }
+
+  /** Sends a message to the backend. Returns false if there is no connection: the message is then lost. */
+  send(message: ApiMessage) {
+    if (!this.socket || this.socket.readyState !== WebSocket.OPEN) return false;
+    this.socket.send(JSON.stringify(message));
+    return true;
   }
 
   /** Closes the connection for good. */
@@ -71,10 +86,21 @@ class ApiConnection {
     };
     socket.onmessage = (event) => {
       if (socket !== this.socket) return;
-      if (String(event.data).includes('"pong"') && this.pongTimer !== null) {
-        window.clearTimeout(this.pongTimer);
-        this.pongTimer = null;
+
+      let message: ApiMessage;
+      try {
+        message = JSON.parse(String(event.data));
+      } catch {
+        return;
       }
+      if (typeof message !== "object" || message === null || typeof message.type !== "string") return;
+
+      if (message.type === "pong") {
+        if (this.pongTimer !== null) window.clearTimeout(this.pongTimer);
+        this.pongTimer = null;
+        return;
+      }
+      this.onMessage(message);
     };
     socket.onclose = () => {
       if (socket !== this.socket) return;

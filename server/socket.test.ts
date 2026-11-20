@@ -72,6 +72,40 @@ describe("createSocketServer", () => {
     expect(received.map((message) => JSON.parse(message))).toEqual([{ type: "hello" }, { type: "pong" }]);
   });
 
+  it("passes the keying of a client on to the others on the same frequency", async () => {
+    const open = (name: string) =>
+      new Promise<{ socket: WebSocket; messages: { type: string }[] }>((resolve) => {
+        const messages: { type: string }[] = [];
+        const socket = new WebSocket(`${address}/ws`, { origin: "https://cw.sirad.fi" });
+        socket.on("message", (data) => {
+          messages.push(JSON.parse(String(data)));
+          if (messages.length === 1) socket.send(JSON.stringify({ type: "join", frequency: 3685000, name }));
+          // The first message about the frequency tells that the client is on it
+          if (messages.length === 2) resolve({ socket, messages });
+        });
+      });
+    const sender = await open("sender");
+    const listener = await open("listener");
+
+    const heard = new Promise<void>((resolve) => {
+      listener.socket.on("message", () => {
+        if (listener.messages.filter(({ type }) => type === "key").length === 2) resolve();
+      });
+    });
+    sender.socket.send(JSON.stringify({ type: "key", down: true, t: 10 }));
+    sender.socket.send(JSON.stringify({ type: "key", down: false, t: 110 }));
+    await heard;
+
+    expect(listener.messages.filter(({ type }) => type !== "hello" && type !== "channel")).toEqual([
+      { type: "key", down: true, t: 10 },
+      { type: "key", down: false, t: 110 }
+    ]);
+    expect(listener.messages).toContainEqual({ type: "channel", frequency: 3685000, users: 2, holder: "other" });
+    expect(sender.messages.some(({ type }) => type === "key")).toBe(false);
+    sender.socket.close();
+    listener.socket.close();
+  });
+
   it("refuses an origin that is not allowed", async () => {
     await expect(connect("/ws", "https://evil.example", 1)).rejects.toThrow("403");
   });

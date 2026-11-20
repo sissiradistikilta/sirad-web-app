@@ -31,7 +31,10 @@ function MorseKey(props: Props) {
   }, [onDown, onUp]);
 
   useEffect(() => {
-    if (!disabled) element.current?.focus({ preventScroll: true });
+    // The focus is not taken from a field that is being written in
+    if (!disabled && !document.activeElement?.closest("input, select, textarea")) {
+      element.current?.focus({ preventScroll: true });
+    }
   }, [disabled]);
 
   useEffect(() => {
