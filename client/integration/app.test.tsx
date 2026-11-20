@@ -46,15 +46,15 @@ describe("the app with the backend", () => {
 
   it("shows with the light whether there is a connection to the backend", async () => {
     renderApp();
-    expect(screen.getByRole("status", { name: "Ei yhteyttä palvelimeen" })).toBeInTheDocument();
-    await screen.findByRole("status", { name: "Yhteys palvelimeen" });
+    expect(screen.getByRole("status")).toHaveTextContent("Ei yhteyttä palvelimeen");
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(/^Yhteys palvelimeen$/));
     const { port } = backend;
 
     await backend.stop();
-    await screen.findByRole("status", { name: "Ei yhteyttä palvelimeen" });
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("Ei yhteyttä palvelimeen"));
 
     backend = await startBackend({ port });
-    await screen.findByRole("status", { name: "Yhteys palvelimeen" });
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(/^Yhteys palvelimeen$/));
   });
 
   it("does not connect to the backend when live keying is not in use", async () => {
@@ -73,10 +73,40 @@ describe("the app with the backend", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Live" }));
 
     await sleep(200);
-    expect(screen.getByRole("status", { name: "Ei yhteyttä palvelimeen" })).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("Ei yhteyttä palvelimeen");
     expect(screen.getByText(/Ei yhteyttä palvelimeen. Yhteyttä yritetään uudelleen/)).toBeInTheDocument();
     expect(key()).toBeDisabled();
     expect(backend.connections()).toBe(0);
+  });
+
+  it("leaves the backend when the connection is switched off, and comes back when it is switched on", async () => {
+    await openLive();
+    const station = await openStation(backend, FREQUENCY);
+    await screen.findByText("Taajuudella on yksi muu.");
+    expect(backend.connections()).toBe(2);
+    const connection = screen.getByRole("switch", { name: "Yhteys palvelimeen" });
+
+    fireEvent.click(connection);
+    expect(screen.getByText(/Yhteys palvelimeen on pois päältä. Kytke se päälle/)).toBeInTheDocument();
+    expect(key()).toBeDisabled();
+    // The others see the user leave, and the backend has no connection from the app
+    await waitFor(() => expect(backend.connections()).toBe(1));
+    await waitFor(() =>
+      expect(station.messages[station.messages.length - 1]).toEqual({
+        type: "channel",
+        frequency: FREQUENCY,
+        users: 1,
+        holder: null
+      })
+    );
+    await sleep(150);
+    expect(backend.connections()).toBe(1);
+
+    fireEvent.click(connection);
+    await screen.findByText("Taajuudella on yksi muu.");
+    expect(backend.connections()).toBe(2);
+    expect(key()).toBeEnabled();
+    station.close();
   });
 
   it("tells in the Live mode who else is on the frequency", async () => {

@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 import { ConnectionOptions } from "./api/connection";
-import { ConnectionStatus, Tabs } from "./components";
+import { ConnectionSwitch, Tabs } from "./components";
 import { useApiConnection } from "./hooks";
+import { readConnectionPreference, writeConnectionPreference } from "./preferences";
 import { Live, Receive, Send } from "./views";
 
 import "./App.css";
@@ -33,8 +34,15 @@ function App({ live = __LIVE_ENABLED__, apiUrl = __API_URL__, connection, commit
   const [selected, setMode] = useState(() => getMode(modes));
   // A mode that is not in use is not shown, even if it was selected
   const mode = modes.some(({ value }) => value === selected) ? selected : modes[0].value;
-  const api = useApiConnection(live ? apiUrl : "", connection);
-  const { connected } = api;
+  // The connection to the backend is on unless the user switches it off
+  const [online, setOnline] = useState(readConnectionPreference);
+  const backend = live && Boolean(apiUrl);
+  const api = useApiConnection(backend && online ? apiUrl : "", connection);
+
+  const switchConnection = useCallback((on: boolean) => {
+    writeConnectionPreference(on);
+    setOnline(on);
+  }, []);
 
   // The address does not keep pointing to a mode that is not in use, e.g. #live without live keying
   useEffect(() => {
@@ -66,12 +74,12 @@ function App({ live = __LIVE_ENABLED__, apiUrl = __API_URL__, connection, commit
               {commit}
             </span>
           )}
-          {connected !== null && <ConnectionStatus connected={connected} />}
+          {backend && <ConnectionSwitch connected={api.connected === true} on={online} onChange={switchConnection} />}
         </span>
       </h1>
       <p>Harjoittele sähkötystä tietokoneellasi tai puhelimellasi.</p>
       <Tabs label="Harjoitus" onChange={selectMode} options={modes} selected={mode} />
-      {mode === "anto" ? <Send /> : mode === "live" ? <Live api={api} /> : <Receive />}
+      {mode === "anto" ? <Send /> : mode === "live" ? <Live api={api} off={backend && !online} /> : <Receive />}
     </div>
   );
 }

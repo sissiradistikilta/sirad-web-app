@@ -103,3 +103,6 @@ export const SEND_MODES: Option[] = [
     value: "koe"
   }
 ];
+
+/** The sending exercise is an exam unless the practice mode with its help is chosen. */
+export const DEFAULT_SEND_MODE = "koe";
