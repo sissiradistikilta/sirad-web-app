@@ -34,10 +34,17 @@ function App({ live = __LIVE_ENABLED__, apiUrl = __API_URL__, connection }: Prop
   const api = useApiConnection(live ? apiUrl : "", connection);
   const { connected } = api;
 
-  const selectMode = useCallback((value: string) => {
-    window.history.replaceState(null, "", value === MODES[0].value ? window.location.pathname : `#${value}`);
-    setMode(value);
-  }, []);
+  const selectMode = useCallback(
+    (value: string) => {
+      // The address is built from the address of the page, not from a relative one: the page has a base
+      // address (<base href="/">) that a relative address would be resolved against, and e.g. the preview
+      // of a pull request (/pr-1/) would get the address of the main site.
+      const { pathname, search } = window.location;
+      window.history.replaceState(null, "", `${pathname}${search}${value === modes[0].value ? "" : `#${value}`}`);
+      setMode(value);
+    },
+    [modes]
+  );
 
   return (
     <div className="App">

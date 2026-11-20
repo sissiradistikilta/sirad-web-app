@@ -389,6 +389,25 @@ describe("App", () => {
     expect(window.location.hash).toBe("");
   });
 
+  it("keeps the path of the page when the mode is changed, e.g. in the preview of a pull request", () => {
+    // The page has a base address, against which a relative address would be resolved
+    const base = document.createElement("base");
+    base.href = "/";
+    document.head.appendChild(base);
+    window.history.replaceState(null, "", "/pr-20/?debug=1");
+    render(<App live />);
+
+    fireEvent.click(screen.getByRole("tab", { name: "Live" }));
+    expect(window.location.pathname + window.location.search + window.location.hash).toBe("/pr-20/?debug=1#live");
+    fireEvent.click(screen.getByRole("tab", { name: "Anto" }));
+    expect(window.location.pathname + window.location.search + window.location.hash).toBe("/pr-20/?debug=1#anto");
+    fireEvent.click(screen.getByRole("tab", { name: "Vastaanotto" }));
+    expect(window.location.pathname + window.location.search + window.location.hash).toBe("/pr-20/?debug=1");
+
+    base.remove();
+    window.history.replaceState(null, "", "/");
+  });
+
   it("opens the sending exercise from the address", () => {
     window.history.replaceState(null, "", "#anto");
     render(<App />);
