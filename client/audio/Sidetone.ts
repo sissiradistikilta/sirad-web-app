@@ -6,6 +6,10 @@ import { TONE_FREQUENCY, TONE_GAIN } from "./MorsePlayer";
  */
 export const KEYING_TIME_CONSTANT = 0.0017;
 
+/** How many times the delay of the audio is measured as the audio starts, and how often, in milliseconds. */
+const CALIBRATION_SAMPLES = 12;
+const CALIBRATION_INTERVAL = 7;
+
 /**
  * The tone of a Morse key: sounds for as long as the key is down.
  *
@@ -24,6 +28,8 @@ class Sidetone {
   private gain: GainNode | null = null;
   /** The gain of the keying that comes from elsewhere. */
   private scheduled: GainNode | null = null;
+  /** How far ahead of what is heard the audio is scheduled, in seconds. See timeOf. */
+  private lead = 0;
 
   /**
    * Starts the audio. Must be called from a user interaction (e.g. a press of the key),
@@ -32,6 +38,7 @@ class Sidetone {
   prepare() {
     if (!this.context || this.context.state === "closed") {
       this.context = new window.AudioContext();
+      this.lead = 0;
       this.oscillator = this.context.createOscillator();
       this.gain = this.context.createGain();
       this.scheduled = this.context.createGain();
@@ -49,17 +56,35 @@ class Sidetone {
     }
 
     if (this.context.state !== "running") {
-      this.context.resume().catch(() => undefined);
+      this.context.resume().then(
+        () => this.calibrate(CALIBRATION_SAMPLES),
+        () => undefined
+      );
     }
   }
 
-  keyDown() {
-    this.prepare();
-    this.setLevel(TONE_GAIN);
+  /** Measures the delay of the audio a few times as it starts, for the first presses to be timed right. */
+  private calibrate(samples: number) {
+    const context = this.context;
+    if (!context || context.state !== "running" || typeof context.getOutputTimestamp !== "function") return;
+
+    this.timeOf(performance.now());
+    if (samples > 1) window.setTimeout(() => this.calibrate(samples - 1), CALIBRATION_INTERVAL);
   }
 
-  keyUp() {
-    this.setLevel(0);
+  /**
+   * The key went down.
+   *
+   * @param eventTime The time of the press in milliseconds on the clock of performance.now(), e.g. the
+   *                  timeStamp of the event. With it the tone gets exactly the length of the press.
+   */
+  keyDown(eventTime?: number) {
+    this.prepare();
+    this.setLevel(TONE_GAIN, eventTime);
+  }
+
+  keyUp(eventTime?: number) {
+    this.setLevel(0, eventTime);
   }
 
   /** The time of the audio clock in seconds, or null if the audio has not been started. */
@@ -93,9 +118,34 @@ class Sidetone {
     }
   }
 
-  private setLevel(level: number) {
+  private setLevel(level: number, eventTime?: number) {
     if (!this.context || !this.gain) return;
-    this.gain.gain.setTargetAtTime(level, this.context.currentTime, KEYING_TIME_CONSTANT);
+    this.gain.gain.setTargetAtTime(level, this.timeOf(eventTime), KEYING_TIME_CONSTANT);
+  }
+
+  /**
+   * The time of the audio clock at which an event of the key is played.
+   *
+   * The audio clock advances a block of audio at a time, about 3-10 ms depending on the device. If the key
+   * were simply moved "now", the presses and the releases would land on the edges of the blocks, and the
+   * length of a tone would be up to a block off. That is a lot for a dot, which can be 40 ms. That is why the
+   * key is moved at the time of the event itself, a constant moment later: every tone is as long as its press.
+   */
+  private timeOf(eventTime?: number) {
+    const context = this.context;
+    if (!context) return 0;
+
+    const now = context.currentTime;
+    if (eventTime === undefined || typeof context.getOutputTimestamp !== "function") return now;
+
+    // The same moment on the clock of the audio and on the clock of the events
+    const { contextTime, performanceTime } = context.getOutputTimestamp();
+    if (!contextTime || !performanceTime) return now;
+    const heardAt = (time: number) => contextTime + (time - performanceTime) / 1000;
+
+    // What is scheduled now is heard a moment later. The longest such moment seen is the constant delay.
+    this.lead = Math.max(this.lead, now - heardAt(performance.now()));
+    return Math.max(now, heardAt(eventTime) + this.lead);
   }
 }
 

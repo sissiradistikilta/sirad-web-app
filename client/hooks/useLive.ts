@@ -43,8 +43,8 @@ const useLive = (api: Api, frequency: number | null) => {
   const offset = useRef<number | null>(null);
   const scheduled = useRef(0);
 
-  const release = useCallback(() => {
-    tone.current?.keyUp();
+  const release = useCallback((time?: number) => {
+    tone.current?.keyUp(time);
     down.current = false;
     setKeyIsDown(false);
   }, []);
@@ -119,7 +119,7 @@ const useLive = (api: Api, frequency: number | null) => {
 
       // The tone of the own key is played right away, it does not wait for the backend
       tone.current ??= new Sidetone();
-      tone.current.keyDown();
+      tone.current.keyDown(time);
       down.current = true;
       setKeyIsDown(true);
       if (holdTimer.current !== null) window.clearTimeout(holdTimer.current);
@@ -134,7 +134,7 @@ const useLive = (api: Api, frequency: number | null) => {
     (time: number) => {
       if (!down.current) return;
 
-      release();
+      release(time);
       holdTimer.current = window.setTimeout(() => {
         holdTimer.current = null;
         setHolding(false);
