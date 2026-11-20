@@ -6,6 +6,10 @@
 }
 
 .App h1 {
+  /* The title on the left and the light of the connection on the right */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   font-size: 24px;
   margin-bottom: 10px;
 }

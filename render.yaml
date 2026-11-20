@@ -1,0 +1,20 @@
+# The backend (api.sirad.fi) as a Render.com Blueprint: https://render.com/docs/blueprint-spec
+#
+# The service is deployed by the GitHub Action in .github/workflows/deploy-api.yml, not by Render
+# itself (autoDeploy is off), so that only backend changes on main cause a deploy.
+services:
+  - type: web
+    name: sirad-api
+    runtime: node
+    plan: free
+    region: frankfurt
+    branch: main
+    autoDeploy: false
+    # Only what the server needs: no development dependencies and no git hooks
+    buildCommand: npm ci --omit=dev --ignore-scripts
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      # The addresses that are allowed to use the API, separated with commas
+      - key: ALLOWED_ORIGINS
+        value: https://cw.sirad.fi

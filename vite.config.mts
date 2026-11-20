@@ -9,11 +9,15 @@ if (!process.env.BASE_HREF.endsWith("/")) {
 }
 
 // https://vitejs.dev/config/
-export default () =>
+export default ({ mode }: { mode: string }) =>
   defineConfig({
     root: "client",
     base: process.env.BASE_HREF,
     plugins: [react({})],
+    define: {
+      // The address of the backend, e.g. https://api.sirad.fi. In development the backend is the local one.
+      __API_URL__: JSON.stringify(process.env.API_URL ?? (mode === "development" ? "http://localhost:4001" : ""))
+    },
     build: {
       outDir: "../dist",
       assetsInlineLimit: 0,
@@ -38,6 +42,8 @@ export default () =>
     test: {
       globals: true,
       environment: "jsdom",
+      // The root is the frontend; the tests of the backend are next to it
+      include: ["**/*.{test,spec}.?(c|m)[jt]s?(x)", "../server/**/*.test.ts"],
       setupFiles: fileURLToPath(new URL("./test/setup.ts", import.meta.url)),
       css: false,
       environmentOptions: {
