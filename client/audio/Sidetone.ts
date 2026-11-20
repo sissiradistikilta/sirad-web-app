@@ -52,6 +52,24 @@ class Sidetone {
     this.setLevel(0);
   }
 
+  /** The time of the audio clock in seconds, or null if the audio has not been started. */
+  get currentTime() {
+    return this.context && this.context.state === "running" ? this.context.currentTime : null;
+  }
+
+  /**
+   * Moves the key at the given time of the audio clock, in seconds. This is for keying that comes
+   * from elsewhere and is played a moment late, to keep its rhythm regardless of when it arrives.
+   */
+  keyAt(down: boolean, time: number) {
+    if (!this.context || !this.gain) return;
+    this.gain.gain.setTargetAtTime(
+      down ? TONE_GAIN : 0,
+      Math.max(time, this.context.currentTime),
+      KEYING_TIME_CONSTANT
+    );
+  }
+
   /** Silences the tone and releases the AudioContext. The tone can still be used again. */
   dispose() {
     const context = this.context;

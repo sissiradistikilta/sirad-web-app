@@ -320,6 +320,23 @@ describe("App", () => {
     });
   });
 
+  it("has the Live mode only when live keying is in use", () => {
+    const { unmount } = render(<App />);
+    expect(screen.queryByRole("tab", { name: "Live" })).not.toBeInTheDocument();
+    unmount();
+
+    // The mode is not opened from the address either
+    window.history.replaceState(null, "", "#live");
+    render(<App />);
+    expect(screen.getByRole("tab", { name: "Vastaanotto" })).toHaveAttribute("aria-selected", "true");
+    cleanup();
+
+    render(<App live />);
+    expect(screen.getByRole("tab", { name: "Live" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByLabelText("Taajuus (MHz)")).toBeInTheDocument();
+    window.history.replaceState(null, "", window.location.pathname);
+  });
+
   it("shows the receiving exercise first, and the sending exercise from its tab", () => {
     render(<App />);
     expect(screen.getByRole("tab", { name: "Vastaanotto" })).toHaveAttribute("aria-selected", "true");

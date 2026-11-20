@@ -124,6 +124,22 @@ describe("ApiConnection", () => {
     connection.close();
   });
 
+  it("sends messages when connected and passes on the messages of the backend", () => {
+    const onMessage = vi.fn();
+    const connection = new ApiConnection("ws://localhost:4001/ws", onChange, onMessage);
+    expect(connection.send({ type: "join", frequency: 3685000 })).toBe(false);
+
+    latest().open();
+    expect(connection.send({ type: "join", frequency: 3685000 })).toBe(true);
+    expect(latest().sent).toEqual([JSON.stringify({ type: "join", frequency: 3685000 })]);
+
+    latest().onmessage?.({ data: JSON.stringify({ type: "key", down: true, t: 1 }) });
+    latest().onmessage?.({ data: JSON.stringify({ type: "pong" }) });
+    latest().onmessage?.({ data: "not json" });
+    expect(onMessage.mock.calls).toEqual([[{ type: "key", down: true, t: 1 }]]);
+    connection.close();
+  });
+
   it("does not connect again after it is closed", () => {
     const connection = new ApiConnection("ws://localhost:4001/ws", onChange);
     latest().open();

@@ -23,14 +23,26 @@ This is React port of [dy.fi/sm](https://dy.fi/sm) application.
 
 The frontend and the backend are deployed separately: the frontend is a static site in GitHub Pages ([cw.sirad.fi](https://cw.sirad.fi)) and the backend is a web service in [Render.com](https://render.com).
 
-The backend (`server`) has a WebSocket API at `/ws` and a health check at `/health`. It does not serve the frontend unless `SERVE_FRONTEND` is `true`. The frontend keeps a connection to the WebSocket API open, and the light in the top right corner tells whether there is a connection (green) or not (red). Without an address of a backend there is no light.
+The backend (`server`) has a WebSocket API at `/ws` and a health check at `/health`. It does not serve the frontend unless `SERVE_FRONTEND` is `true`. When live keying is in use (`LIVE_ENABLED`), the frontend keeps a connection to the WebSocket API open, and the light in the top right corner tells whether there is a connection (green) or not (red). Without live keying or an address of a backend there is no connection and no light.
 
-| Variable          | Used by  | Meaning                                                                                                                                                                                                          |
-| ----------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `API_URL`         | frontend | The address of the backend, e.g. `https://api.sirad.fi`. It is given when the frontend is built. The default is `http://localhost:4001` in development, otherwise empty. In development it can be set in `.env`. |
-| `PORT`            | backend  | The port of the server, `4001` by default. Render.com sets it.                                                                                                                                                   |
-| `ALLOWED_ORIGINS` | backend  | The addresses that are allowed to use the API, separated with commas, e.g. `https://cw.sirad.fi`. Everything is allowed if it is not set.                                                                        |
-| `SERVE_FRONTEND`  | backend  | `true` makes the backend also serve the built frontend from `dist`.                                                                                                                                              |
+| Variable          | Used by  | Meaning                                                                                                                                                                                                                               |
+| ----------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `API_URL`         | frontend | The address of the backend, e.g. `https://api.sirad.fi`. It is given when the frontend is built. The default is `http://localhost:4001` in development, otherwise empty. In development it can be set in `.env`.                      |
+| `LIVE_ENABLED`    | frontend | `true` takes live keying into use: the Live mode and the connection to the backend, with its light. It is given when the frontend is built, and it is always on in the previews of pull requests. The backend always has live keying. |
+| `PORT`            | backend  | The port of the server, `4001` by default. Render.com sets it.                                                                                                                                                                        |
+| `ALLOWED_ORIGINS` | backend  | The addresses that are allowed to use the API, separated with commas, e.g. `https://cw.sirad.fi`. Everything is allowed if it is not set.                                                                                             |
+| `SERVE_FRONTEND`  | backend  | `true` makes the backend also serve the built frontend from `dist`.                                                                                                                                                                   |
+
+### Live keying
+
+In the Live mode those who are on the same frequency hear the keying of each other. The frequency is only a name of a group in the backend (`server/channels.ts`): 1.5-30 MHz in steps of 100 Hz.
+
+- A client goes to a frequency with `{ "type": "join", "frequency": 3685000 }` and leaves it with `{ "type": "leave" }`.
+- A press or a release of the key is `{ "type": "key", "down": true, "t": 1234.5 }`, where `t` is the time in milliseconds on the clock of the client. The backend passes it on to the others on the frequency, not back to the sender.
+- Only one can key at a time. The first press reserves the frequency, and it is freed half a second after the key was last released. The keying of the others is ignored meanwhile.
+- The backend tells about the frequency with `{ "type": "channel", "frequency": 3685000, "users": 2, "holder": "other" }`, where `holder` is `"self"`, `"other"` or `null`.
+
+The listeners play the keying by the times of the sender, 150 ms late (`client/hooks/useLive.ts`). That keeps the rhythm of the keying even though the messages arrive unevenly.
 
 ### Deploys
 
@@ -44,6 +56,7 @@ The Render.com service is described in `render.yaml`. To set it up:
    - the secret `RENDER_API_KEY`: an API key from the account settings of Render.com
    - the variable `RENDER_SERVICE_ID`: the id of the service (`srv-...`), seen in the address of the service in the Render.com dashboard
    - the variable `API_URL`: the address of the service, e.g. `https://sirad-api.onrender.com`, and later `https://api.sirad.fi`
+   - the variable `LIVE_ENABLED`: `true` to have live keying in production
 3. Run the Deploy workflow again (or push to `main`), so that the frontend is built with the address of the backend.
 
 ## Audio
