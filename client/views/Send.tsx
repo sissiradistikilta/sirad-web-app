@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Button, MorseKey, MorseTree, Options, Select } from "../components";
-import { CHARACTER_SETS, LENGTHS, SPEEDS } from "../constants";
+import { CHARACTER_SETS, LENGTHS, SEND_MODES, SPEEDS } from "../constants";
 import { useExercise, useKeyer, useLetterChunks } from "../hooks";
 import { WRONG_TIME } from "../hooks/useExercise";
 import { patternToCharacter } from "../keying";
@@ -21,6 +21,8 @@ function Send() {
   const [characterSpeed, setCharacterSpeed] = useState(60);
   const [characters, setCharacters] = useState(CHARACTER_SETS[0].value);
   const [length, setLength] = useState<number>(LENGTHS[0]);
+  // In the practice mode the path of the character is shown as it is sent, in an exam there is no such help
+  const [mode, setMode] = useState(SEND_MODES[0].value);
   const [message, setMessage] = useState<MorseCharacter[]>([]);
 
   const groups = useLetterChunks(message);
@@ -105,12 +107,19 @@ function Send() {
               }))}
               selected={String(length)}
             />
+            <Select
+              id="sendMode"
+              title="Tila"
+              onChange={(value) => setMode(value)}
+              options={SEND_MODES}
+              selected={mode}
+            />
           </Options>
         </>
       )}
       <div className="App-buttons">
         <Button disabled={running} onClick={start}>
-          {result ? "Uusi harjoitus" : "Aloita"}
+          Aloita
         </Button>
         <Button disabled={!running} onClick={exercise.stop}>
           Lopeta
@@ -158,11 +167,15 @@ function Send() {
               );
             })}
           </div>
-          <div aria-label="Sähkötetty" className="Send-elements">
-            <span>{pattern.replace(/\./g, "·").replace(/-/g, "–")}</span>
-            <span className="Send-pattern">{patternToCharacter(pattern) ?? (pattern ? "?" : "")}</span>
-          </div>
-          <MorseTree completed={completed} pattern={pattern} />
+          {mode === "harjoittelu" && (
+            <>
+              <div aria-label="Sähkötetty" className="Send-elements">
+                <span>{pattern.replace(/\./g, "·").replace(/-/g, "–")}</span>
+                <span className="Send-pattern">{patternToCharacter(pattern) ?? (pattern ? "?" : "")}</span>
+              </div>
+              <MorseTree completed={completed} pattern={pattern} />
+            </>
+          )}
         </>
       )}
       {!running && result && (

@@ -151,4 +151,19 @@ describe("usePlayer", () => {
     expect(context().close).toHaveBeenCalledTimes(1);
     expect(vi.getTimerCount()).toBe(0);
   });
+
+  it("plays the message given at the start instead of the one of the hook", async () => {
+    const hook = render(["E"]);
+    await act(async () => {
+      hook.result.current.startPlayback([["T"]]);
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    act(() => advance(60));
+
+    // Three times "=" (5 tones each), the message, "+" (5) and VA (6): T is one tone
+    expect(context().gains[0].gain.events).toHaveLength((15 + 1 + 5 + 6) * 4);
+    // The tone after the start of the message is the message: a dash for T
+    const [attack, , release] = context().gains[0].gain.events.slice(15 * 4);
+    expect(release.time - attack.time).toBeCloseTo((3 * 60) / (9 * 160), 9);
+  });
 });

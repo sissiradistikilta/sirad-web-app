@@ -1,4 +1,4 @@
-/* On a phone the key is at the bottom of the screen, under the thumb */
+/* On a touch screen the key is at the bottom of the screen, under the thumb */
 .MorseKey {
   position: fixed;
   right: 0;
@@ -60,7 +60,8 @@ button.MorseKey-button:focus-visible {
   font-size: 14px;
 }
 
-@media screen and (min-width: 600px) and (min-height: 500px) {
+/* With a mouse on a large screen: the key is in the page, not at the bottom of the screen */
+@media screen and (min-width: 600px) and (min-height: 500px) and (pointer: fine) {
   .MorseKey {
     position: static;
     height: 140px;

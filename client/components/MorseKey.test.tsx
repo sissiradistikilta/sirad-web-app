@@ -133,4 +133,42 @@ describe("MorseKey", () => {
     view.rerender(<MorseKey down={false} onDown={() => undefined} onUp={() => undefined} />);
     expect(screen.getByRole("button", { name: "Sähkötysavain" })).toHaveFocus();
   });
+
+  it("takes a new press as a new press even if the lift of the previous one was never told about", () => {
+    const { key, onDown, onUp } = setup();
+    fireEvent.pointerDown(key, { button: 0, pointerId: 1 });
+    // No pointerup: e.g. a gesture of the phone took the touch over
+    fireEvent.pointerDown(key, { button: 0, pointerId: 1 });
+    expect(onDown).toHaveBeenCalledTimes(2);
+    expect(onUp).toHaveBeenCalledTimes(1);
+
+    fireEvent.pointerUp(key, { pointerId: 1 });
+    expect(onUp).toHaveBeenCalledTimes(2);
+  });
+
+  it("goes up when the last finger is lifted, also without the event of the pointer", () => {
+    const { key, onDown, onUp } = setup();
+    fireEvent.pointerDown(key, { button: 0, pointerId: 7 });
+    fireEvent.touchEnd(key, { targetTouches: [] });
+    expect(onUp).toHaveBeenCalledTimes(1);
+
+    // The event of the pointer does nothing more if it comes after all
+    fireEvent.pointerUp(key, { pointerId: 7 });
+    expect(onDown).toHaveBeenCalledTimes(1);
+    expect(onUp).toHaveBeenCalledTimes(1);
+  });
+
+  it("stays down while another finger is still on it", () => {
+    const { key, onUp } = setup();
+    fireEvent.pointerDown(key, { button: 0, pointerId: 1 });
+    fireEvent.pointerDown(key, { button: 0, pointerId: 2 });
+    fireEvent.touchEnd(key, { targetTouches: [{ identifier: 2, target: key }] });
+    expect(onUp).not.toHaveBeenCalled();
+  });
+
+  it("does not let a phone start a gesture of its own from a long press or select text", () => {
+    const { key } = setup();
+    expect(fireEvent.touchStart(key, { targetTouches: [{ identifier: 1, target: key }] })).toBe(false);
+    expect(fireEvent(key, new Event("selectstart", { bubbles: true, cancelable: true }))).toBe(false);
+  });
 });

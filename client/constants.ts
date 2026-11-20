@@ -92,3 +92,14 @@ export const RECEIVE_MODES: Option[] = [
     value: "koe-nappaimisto"
   }
 ];
+
+export const SEND_MODES: Option[] = [
+  {
+    label: "Harjoittelu",
+    value: "harjoittelu"
+  },
+  {
+    label: "Koe",
+    value: "koe"
+  }
+];

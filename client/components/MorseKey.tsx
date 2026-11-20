@@ -74,10 +74,24 @@ function MorseKey(props: Props) {
       event.preventDefault();
       // The key stays down even if the finger slides off it
       button?.setPointerCapture?.(event.pointerId);
+      // If the lift of the previous press was never told about, this press is still a new one
+      release(`pointer-${event.pointerId}`, event);
       hold(`pointer-${event.pointerId}`, event);
     };
     const handlePointerUp = (event: PointerEvent) => release(`pointer-${event.pointerId}`, event);
     const prevent = (event: Event) => event.preventDefault();
+    // A phone must not start a gesture of its own from a long press, e.g. selecting the text of the page.
+    // Such a gesture also takes the touch over, and the lift of the finger is then never told about.
+    const handleTouchStart = (event: TouchEvent) => {
+      if (event.cancelable) event.preventDefault();
+    };
+    // The lift of the last finger lets the key go, also if the event of the pointer was lost
+    const handleTouchEnd = (event: TouchEvent) => {
+      if (event.targetTouches.length > 0) return;
+      Array.from(holders.current)
+        .filter((holder) => holder.startsWith("pointer-"))
+        .forEach((holder) => release(holder, event));
+    };
 
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("keyup", handleKeyUp);
@@ -88,6 +102,10 @@ function MorseKey(props: Props) {
     button?.addEventListener("lostpointercapture", handlePointerUp);
     // No menu from a long press
     button?.addEventListener("contextmenu", prevent);
+    button?.addEventListener("selectstart", prevent);
+    button?.addEventListener("touchstart", handleTouchStart, { passive: false });
+    button?.addEventListener("touchend", handleTouchEnd);
+    button?.addEventListener("touchcancel", handleTouchEnd);
 
     return () => {
       // The key does not stay down when it is disabled while held
@@ -100,6 +118,10 @@ function MorseKey(props: Props) {
       button?.removeEventListener("pointercancel", handlePointerUp);
       button?.removeEventListener("lostpointercapture", handlePointerUp);
       button?.removeEventListener("contextmenu", prevent);
+      button?.removeEventListener("selectstart", prevent);
+      button?.removeEventListener("touchstart", handleTouchStart);
+      button?.removeEventListener("touchend", handleTouchEnd);
+      button?.removeEventListener("touchcancel", handleTouchEnd);
     };
   }, [disabled]);
 
