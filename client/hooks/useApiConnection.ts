@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import ApiConnection, { ApiMessage, toSocketUrl } from "../api/connection";
+import ApiConnection, { ApiMessage, ConnectionOptions, toSocketUrl } from "../api/connection";
 
 export interface Api {
   /** Whether there is a connection to the backend. Null if there is no backend to connect to. */
@@ -11,18 +11,30 @@ export interface Api {
   subscribe: (listener: (message: ApiMessage) => void) => () => void;
 }
 
-/** A connection to the backend at the given address (e.g. https://api.sirad.fi), kept open. */
-const useApiConnection = (apiUrl: string): Api => {
+/**
+ * A connection to the backend at the given address (e.g. https://api.sirad.fi), kept open.
+ *
+ * @param options The timing of the connection, if other than the default. Read when the connection is opened.
+ */
+const useApiConnection = (apiUrl: string, options?: ConnectionOptions): Api => {
   const [connected, setConnected] = useState(false);
   const connection = useRef<ApiConnection | null>(null);
   const listeners = useRef(new Set<(message: ApiMessage) => void>());
+  const timing = useRef(options);
+
+  useEffect(() => {
+    timing.current = options;
+  }, [options]);
 
   useEffect(() => {
     if (!apiUrl) return;
 
-    const opened = new ApiConnection(toSocketUrl(apiUrl), setConnected, (message) => {
-      listeners.current.forEach((listener) => listener(message));
-    });
+    const opened = new ApiConnection(
+      toSocketUrl(apiUrl),
+      setConnected,
+      (message) => listeners.current.forEach((listener) => listener(message)),
+      timing.current
+    );
     connection.current = opened;
     return () => {
       connection.current = null;

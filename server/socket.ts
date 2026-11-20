@@ -1,7 +1,7 @@
 import { IncomingMessage, Server } from "http";
 import { WebSocket, WebSocketServer } from "ws";
 
-import Channels, { isFrequency } from "./channels";
+import Channels, { ChannelsOptions, isFrequency } from "./channels";
 
 export const SOCKET_PATH = "/ws";
 /** The largest message a client can send, in bytes. The messages of the API are small. */
@@ -13,6 +13,8 @@ export interface SocketOptions {
   /** The origins that may connect, e.g. https://cw.sirad.fi. Any origin may connect if none are given. */
   allowedOrigins?: string[];
   heartbeatInterval?: number;
+  /** The timing of live keying, see Channels. */
+  channels?: ChannelsOptions;
 }
 
 /** The origins of a comma separated list, e.g. of the environment variable ALLOWED_ORIGINS. */
@@ -41,7 +43,7 @@ export function createSocketServer(server: Server, options: SocketOptions = {}) 
   const sockets = new WebSocketServer({ noServer: true, maxPayload: MAX_MESSAGE_SIZE });
   const channels = new Channels<WebSocket>((client, message) => {
     if (client.readyState === WebSocket.OPEN) client.send(JSON.stringify(message));
-  });
+  }, options.channels);
   const alive = new WeakSet<WebSocket>();
 
   server.on("upgrade", (request: IncomingMessage, socket, head) => {

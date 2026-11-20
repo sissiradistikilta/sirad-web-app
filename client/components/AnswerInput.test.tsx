@@ -56,6 +56,15 @@ describe("AnswerInput", () => {
     expect(onChange).toHaveBeenCalledWith("ab");
   });
 
+  it("takes the focus back when the group is pressed, for the keyboard of a phone to open again", () => {
+    const { inputRef } = setup(["A"]);
+    inputRef.current?.blur();
+    expect(inputRef.current).not.toHaveFocus();
+
+    fireEvent.click(screen.getByText("Ryhmä 1 / 25"));
+    expect(inputRef.current).toHaveFocus();
+  });
+
   it("is a plain text field without the help of a phone's keyboard", () => {
     setup([]);
     const field = screen.getByLabelText("Vastaus");

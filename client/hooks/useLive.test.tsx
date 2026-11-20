@@ -167,4 +167,28 @@ describe("useLive", () => {
     expect(times[1]).toBeCloseTo(10 + PLAYOUT_DELAY, 6);
     expect(times[2]).toBeCloseTo(20 + PLAYOUT_DELAY, 6);
   });
+
+  it("shows nothing of the frequency as soon as the connection is lost", () => {
+    const hook = render();
+    channel("other");
+    expect(hook.result.current.receiving).toBe(true);
+
+    hook.rerender({ frequency: FREQUENCY, connected: false });
+    expect(hook.result.current.channel).toBeNull();
+    expect(hook.result.current.receiving).toBe(false);
+    expect(sent[sent.length - 1]).toEqual({ type: "leave" });
+  });
+
+  it("ignores messages it does not understand", () => {
+    const hook = render();
+    receive({ type: "channel", frequency: FREQUENCY, users: "two", holder: null });
+    receive({ type: "channel", frequency: FREQUENCY, users: 2, holder: "someone" });
+    receive({ type: "key", down: true, t: 1 });
+    expect(hook.result.current.channel).toBeNull();
+
+    channel("other");
+    receive({ type: "key", down: "yes", t: 1 });
+    receive({ type: "other" });
+    expect(hook.result.current.channel).toEqual({ frequency: FREQUENCY, users: 2, holder: "other" });
+  });
 });

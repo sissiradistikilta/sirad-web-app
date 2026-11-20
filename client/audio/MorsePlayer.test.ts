@@ -449,4 +449,87 @@ describe("MorsePlayer", () => {
       expect(vi.getTimerCount()).toBe(0);
     });
   });
+
+  describe("interruptions", () => {
+    it("tells when the audio cannot be created", () => {
+      const onError = vi.fn();
+      const failure = new Error("no audio");
+      vi.spyOn(window, "AudioContext").mockImplementation(function () {
+        throw failure;
+      });
+
+      player.start(buildMessageTimeline([["A"]], 100), { onError });
+      expect(onError).toHaveBeenCalledWith(failure);
+      expect(AudioContextMock.instances).toHaveLength(0);
+    });
+
+    it("tells when the browser does not let the audio start", async () => {
+      const onError = vi.fn();
+      const onEnded = vi.fn();
+      const failure = new Error("not allowed");
+      const create = window.AudioContext;
+      vi.spyOn(window, "AudioContext").mockImplementation(function () {
+        const created = new create();
+        (created as unknown as AudioContextMock).resume.mockRejectedValue(failure);
+        return created;
+      });
+
+      player.start(buildMessageTimeline([["A"]], 100), { onError, onEnded });
+      await flush();
+      expect(onError).toHaveBeenCalledWith(failure);
+      expect(context().oscillators).toHaveLength(0);
+    });
+
+    it("continues the audio when the browser has suspended it", async () => {
+      player.start(buildMessageTimeline([["A", "B", "C", "D", "E"]], 100));
+      await flush();
+      expect(context().resume).toHaveBeenCalledTimes(1);
+      const [, handleStateChange] =
+        context().addEventListener.mock.calls.find(([type]) => type === "statechange") ?? [];
+
+      // E.g. a phone call interrupts the audio of a phone
+      context().state = "suspended";
+      handleStateChange();
+      expect(context().resume).toHaveBeenCalledTimes(2);
+    });
+
+    it("continues the audio when the tab is shown again, and schedules further ahead when it is hidden", async () => {
+      player.start(buildMessageTimeline([["A", "B", "C", "D", "E"]], 100));
+      await flush();
+      const scheduled = keyGain().events.length;
+      const visibility = vi.spyOn(document, "visibilityState", "get");
+
+      visibility.mockReturnValue("hidden");
+      document.dispatchEvent(new Event("visibilitychange"));
+      expect(keyGain().events.length).toBeGreaterThan(scheduled);
+      expect(context().resume).toHaveBeenCalledTimes(1);
+
+      context().state = "suspended";
+      visibility.mockReturnValue("visible");
+      document.dispatchEvent(new Event("visibilitychange"));
+      expect(context().resume).toHaveBeenCalledTimes(2);
+    });
+
+    it("ignores the tab and the browser when nothing is played", async () => {
+      player.start(buildMessageTimeline([["A"]], 100));
+      await flush();
+      player.stop();
+
+      context().state = "suspended";
+      document.dispatchEvent(new Event("visibilitychange"));
+      expect(context().resume).toHaveBeenCalledTimes(1);
+    });
+
+    it("releases the nodes even if the oscillator cannot be stopped", async () => {
+      player.start(buildMessageTimeline([["A"]], 100));
+      await flush();
+      const [oscillator] = context().oscillators;
+      oscillator.stop.mockImplementation(() => {
+        throw new Error("already stopped");
+      });
+
+      player.stop();
+      expect(oscillator.disconnect).toHaveBeenCalled();
+    });
+  });
 });

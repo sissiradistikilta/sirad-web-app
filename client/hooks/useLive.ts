@@ -143,15 +143,19 @@ const useLive = (api: Api, frequency: number | null) => {
     };
   }, []);
 
+  // What was told about a frequency holds only while connected and on that frequency. The state is cleared
+  // a moment after either changes, and nothing of the old situation is shown meanwhile.
+  const current = connected && channel?.frequency === frequency ? channel : null;
+
   return {
-    channel,
+    channel: current,
     keyDown,
     keyIsDown,
     keyUp,
     /** Someone else is keying on the frequency: the key cannot be used. */
-    receiving: channel?.holder === "other",
+    receiving: current?.holder === "other",
     /** The user is keying, or has the frequency after keying. */
-    transmitting: keyIsDown || channel?.holder === "self"
+    transmitting: keyIsDown || current?.holder === "self"
   };
 };
 

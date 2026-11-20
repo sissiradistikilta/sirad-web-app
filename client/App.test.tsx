@@ -5,10 +5,12 @@ import { act, cleanup, createEvent, fireEvent, render, screen } from "@testing-l
 import { AudioContextMock } from "../test/audio-context-mock";
 
 import App from "./App";
-import { MORSE_CODES } from "./constants";
+import { CHARACTER_SETS, MORSE_CODES } from "./constants";
 import { MorseCharacter } from "./types";
 
 const STEP = 0.005;
+/** The set of characters with only the numbers. */
+const NUMBERS = CHARACTER_SETS[CHARACTER_SETS.length - 1].value;
 
 function advance(seconds: number) {
   for (let time = 0; time < seconds - STEP / 2; time += STEP) {
@@ -318,6 +320,41 @@ describe("App", () => {
       expect(boxes()).toEqual(["", "", "", "", ""]);
       expect(field()).toHaveValue("");
     });
+  });
+
+  it("makes the series of the receiving exercise by the settings", async () => {
+    render(<App />);
+    fireEvent.change(screen.getByLabelText("Merkkien nopeus"), { target: { value: "100" } });
+    fireEvent.change(screen.getByLabelText("Merkit"), { target: { value: NUMBERS } });
+    fireEvent.change(screen.getByLabelText("Pituus"), { target: { value: "250" } });
+    fireEvent.change(screen.getByLabelText("Tila"), { target: { value: "harjoittelu" } });
+    expect(screen.getByLabelText("Merkit")).toHaveValue(NUMBERS);
+    expect(screen.getByLabelText("Merkkien nopeus")).toHaveValue("100");
+    await play();
+
+    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuemax", "50");
+    // The start of the message takes 52 units of 60 / (9 * 100) seconds at this speed
+    act(() => advance(0.1 + (52 * 60) / (9 * 100) + 0.1));
+    expect(screen.getByText("Toistetaan ryhmää 1 / 50")).toBeInTheDocument();
+    // Only numbers were asked for
+    const groups = Array.from(document.querySelectorAll(".Results-group"), (group) => group.textContent ?? "");
+    expect(groups).toHaveLength(50);
+    groups.forEach((group) => expect(group).toMatch(/^[0-9]{5}$/));
+    expect(document.querySelector(".Results-caption")).toHaveTextContent("100 merkkiä/min");
+  });
+
+  it("makes the series of the sending exercise by the settings", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("tab", { name: "Anto" }));
+    fireEvent.change(screen.getByLabelText("Nopeus"), { target: { value: "100" } });
+    fireEvent.change(screen.getByLabelText("Merkit"), { target: { value: NUMBERS } });
+    fireEvent.change(screen.getByLabelText("Pituus"), { target: { value: "250" } });
+    fireEvent.click(button("Aloita"));
+
+    expect(screen.getByText("Ryhmä 1 / 50")).toBeInTheDocument();
+    const group = Array.from(screen.getByLabelText("Sähkötettävä ryhmä").children).map((item) => item.textContent);
+    expect(group).toHaveLength(5);
+    group.forEach((character) => expect(character).toMatch(/^[0-9]$/));
   });
 
   it("has the Live mode only when live keying is in use", () => {

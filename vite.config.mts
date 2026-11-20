@@ -48,6 +48,15 @@ export default ({ mode }: { mode: string }) =>
       include: ["**/*.{test,spec}.?(c|m)[jt]s?(x)", "../server/**/*.test.ts"],
       setupFiles: fileURLToPath(new URL("./test/setup.ts", import.meta.url)),
       css: false,
+      coverage: {
+        // The whole frontend and backend, also the files that no test touches
+        include: ["**/*.{ts,tsx}", "../server/**/*.ts"],
+        exclude: ["**/*.test.{ts,tsx}", "**/*.d.ts", "**/node_modules/**"],
+        allowExternal: true,
+        reporter: ["text", "html"],
+        reportsDirectory: "../coverage",
+        thresholds: { statements: 95, branches: 90, functions: 95, lines: 95 }
+      },
       environmentOptions: {
         jsdom: {
           resources: "usable"

@@ -18,6 +18,7 @@ This is React port of [dy.fi/sm](https://dy.fi/sm) application.
 - `npm run format:fix` = autofix format
 - `npm run test` = run tests
 - `npm run test:watch` = run tests in watch mode
+- `npm run test:coverage` = run tests and tell how much of the code they cover. The report is written to `coverage`, and the run fails if the coverage is under the thresholds in `vite.config.mts`
 
 ## Frontend and backend
 
@@ -58,6 +59,16 @@ The Render.com service is described in `render.yaml`. To set it up:
    - the variable `API_URL`: the address of the service, e.g. `https://sirad-api.onrender.com`, and later `https://api.sirad.fi`
    - the variable `LIVE_ENABLED`: `true` to have live keying in production
 3. Run the Deploy workflow again (or push to `main`), so that the frontend is built with the address of the backend.
+
+## Tests
+
+The tests are next to the code they test (`*.test.ts` and `*.test.tsx`), and they are run with [Vitest](https://vitest.dev).
+
+- The frontend is tested in a browser environment (jsdom) with [Testing Library](https://testing-library.com). The audio is a mock (`test/audio-context-mock.ts`) that records what is scheduled.
+- The backend is tested in Node.js, over real HTTP and WebSocket connections to a server on a free port.
+- `client/integration` tests the two together, without mocking either: the tests start the real backend (`startBackend` in `test/backend.ts`) and the frontend connects to it over a real WebSocket. The tests cover the connection and its recovery, live keying between several frontends and the whole app in the Live mode. A test can also be another user on a frequency (`openStation`).
+
+In the integration tests the WebSocket of the frontend is the one of the `ws` library, which has the interface of the one of a browser, because the one of jsdom does not work under Vitest. The delays of the connection and of live keying are shortened in the tests, to keep them fast.
 
 ## Audio
 

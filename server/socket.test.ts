@@ -113,4 +113,98 @@ describe("createSocketServer", () => {
   it("refuses other paths", async () => {
     await expect(connect("/other", "https://cw.sirad.fi", 1)).rejects.toThrow("403");
   });
+
+  /** A client on the frequency, with the messages it has got. */
+  const join = (frequency = 3685000) =>
+    new Promise<{ socket: WebSocket; messages: { type: string }[] }>((resolve) => {
+      const messages: { type: string }[] = [];
+      const socket = new WebSocket(`${address}/ws`, { origin: "https://cw.sirad.fi" });
+      socket.on("message", (data) => {
+        messages.push(JSON.parse(String(data)));
+        if (messages.length === 1) socket.send(JSON.stringify({ type: "join", frequency }));
+        if (messages.length === 2) resolve({ socket, messages });
+      });
+    });
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 60));
+
+  it("ignores messages that are not of the API", async () => {
+    const sender = await join();
+    const listener = await join();
+    const before = listener.messages.length;
+
+    sender.socket.send("not json");
+    sender.socket.send("null");
+    sender.socket.send(JSON.stringify("text"));
+    sender.socket.send(JSON.stringify({ type: "unknown" }));
+    sender.socket.send(JSON.stringify({ type: "key", down: "yes", t: 1 }));
+    sender.socket.send(JSON.stringify({ type: "key", down: true, t: "now" }));
+    sender.socket.send(JSON.stringify({ type: "key", down: true }));
+    sender.socket.send(JSON.stringify({ type: "join", frequency: 123 }));
+    sender.socket.send(JSON.stringify({ type: "join", frequency: "3685000" }));
+    await settle();
+
+    // Nothing was passed on, and the sender is still on its frequency and connected
+    expect(listener.messages).toHaveLength(before);
+    expect(sender.socket.readyState).toBe(WebSocket.OPEN);
+    sender.socket.send(JSON.stringify({ type: "ping" }));
+    await settle();
+    expect(sender.messages[sender.messages.length - 1]).toEqual({ type: "pong" });
+    sender.socket.close();
+    listener.socket.close();
+  });
+
+  it("closes the connection of a client that sends a too large message", async () => {
+    const client = await join();
+    const closed = new Promise<number>((resolve) => client.socket.on("close", resolve));
+
+    client.socket.send(JSON.stringify({ type: "ping", padding: "x".repeat(2000) }));
+    expect(await closed).toBe(1009);
+  });
+
+  it("takes a client off its frequency when it leaves or its connection closes", async () => {
+    const first = await join();
+    const second = await join();
+    const third = await join();
+    const users = () => {
+      const states = first.messages.filter(({ type }) => type === "channel") as unknown as { users: number }[];
+      return states[states.length - 1].users;
+    };
+    await settle();
+    expect(users()).toBe(3);
+
+    second.socket.send(JSON.stringify({ type: "leave" }));
+    await settle();
+    expect(users()).toBe(2);
+    expect(second.socket.readyState).toBe(WebSocket.OPEN);
+
+    third.socket.close();
+    await settle();
+    expect(users()).toBe(1);
+    first.socket.close();
+    second.socket.close();
+  });
+});
+
+describe("the heartbeat of the socket server", () => {
+  it("drops a client that does not answer the pings, and keeps one that does", async () => {
+    const server = createServer();
+    const sockets = createSocketServer(server, { heartbeatInterval: 40 });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = `ws://127.0.0.1:${(server.address() as AddressInfo).port}/ws`;
+
+    const open = (socket: WebSocket) => new Promise((resolve) => socket.on("open", resolve));
+    const alive = new WebSocket(address);
+    // A client that has gone without closing the connection: it no longer answers
+    const gone = new WebSocket(address, { autoPong: false });
+    await Promise.all([open(alive), open(gone)]);
+    expect(sockets.clients.size).toBe(2);
+
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(sockets.clients.size).toBe(1);
+    expect(alive.readyState).toBe(WebSocket.OPEN);
+
+    alive.close();
+    server.closeAllConnections();
+    await new Promise((resolve) => server.close(resolve));
+  });
 });
