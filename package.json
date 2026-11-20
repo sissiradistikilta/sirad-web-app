@@ -12,7 +12,7 @@
     "start": "ts-node --transpile-only --project ./tsconfig.server.json ./server/index.ts",
     "start:app": "npm run build && SERVE_FRONTEND=true npm start",
     "dev": "concurrently \"npm run dev:client\" \"npm run dev:server\"",
-    "dev:client": "vite",
+    "dev:client": "dotenv -- vite",
     "dev:server": "ts-node-dev --project ./tsconfig.server.json ./server/index.ts",
     "clean": "rimraf ./dist",
     "build": "vite build",

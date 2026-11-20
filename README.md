@@ -7,7 +7,7 @@ This is React port of [dy.fi/sm](https://dy.fi/sm) application.
 - `npm run start` = start the backend -> [http://localhost:4001](http://localhost:4001)
 - `npm run start:app` = frontend production build + start the backend so that it also serves the frontend -> [http://localhost:4001](http://localhost:4001)
 - `npm run dev` = starts development server (backend) and Vite development server (frontend) -> [http://localhost:4000](http://localhost:4000) (frontend) & [http://localhost:4001](http://localhost:4001) (backend)
-- `npm run dev:client` = starts Vite development server (frontend) -> [http://localhost:4000](http://localhost:4000)
+- `npm run dev:client` = starts Vite development server (frontend) -> [http://localhost:4000](http://localhost:4000). It reads `.env`, if there is one (see `.env.example`)
 - `npm run dev:server` = start development server (backend) -> [http://localhost:4001](http://localhost:4001)
 - `npm run clean` = clean
 - `npm run build` = build (client/frontend, production build)
@@ -25,12 +25,12 @@ The frontend and the backend are deployed separately: the frontend is a static s
 
 The backend (`server`) has a WebSocket API at `/ws` and a health check at `/health`. It does not serve the frontend unless `SERVE_FRONTEND` is `true`. The frontend keeps a connection to the WebSocket API open, and the light in the top right corner tells whether there is a connection (green) or not (red). Without an address of a backend there is no light.
 
-| Variable          | Used by  | Meaning                                                                                                                                                                  |
-| ----------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `API_URL`         | frontend | The address of the backend, e.g. `https://api.sirad.fi`. It is given when the frontend is built. The default is `http://localhost:4001` in development, otherwise empty. |
-| `PORT`            | backend  | The port of the server, `4001` by default. Render.com sets it.                                                                                                           |
-| `ALLOWED_ORIGINS` | backend  | The addresses that are allowed to use the API, separated with commas, e.g. `https://cw.sirad.fi`. Everything is allowed if it is not set.                                |
-| `SERVE_FRONTEND`  | backend  | `true` makes the backend also serve the built frontend from `dist`.                                                                                                      |
+| Variable          | Used by  | Meaning                                                                                                                                                                                                          |
+| ----------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `API_URL`         | frontend | The address of the backend, e.g. `https://api.sirad.fi`. It is given when the frontend is built. The default is `http://localhost:4001` in development, otherwise empty. In development it can be set in `.env`. |
+| `PORT`            | backend  | The port of the server, `4001` by default. Render.com sets it.                                                                                                                                                   |
+| `ALLOWED_ORIGINS` | backend  | The addresses that are allowed to use the API, separated with commas, e.g. `https://cw.sirad.fi`. Everything is allowed if it is not set.                                                                        |
+| `SERVE_FRONTEND`  | backend  | `true` makes the backend also serve the built frontend from `dist`.                                                                                                                                              |
 
 ### Deploys
 
