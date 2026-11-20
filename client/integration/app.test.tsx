@@ -129,7 +129,7 @@ describe("the app with the backend", () => {
 
     fireEvent.keyUp(window, { code: "Space" });
     await waitFor(() => expect(station.messages).toContainEqual(expect.objectContaining({ type: "key", down: false })));
-    // TX stays lit until the frequency is freed
+    // TX stays lit for a moment after the key is released
     expect(lamp("Lähetys: päällä")).toBeInTheDocument();
     await waitFor(() => expect(lamp("Lähetys: pois")).toBeInTheDocument());
     expect(station.messages[station.messages.length - 1]).toEqual({

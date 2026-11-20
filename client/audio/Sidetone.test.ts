@@ -80,7 +80,10 @@ describe("Sidetone", () => {
     sidetone.keyAt(true, 2.15);
     sidetone.keyAt(false, 1);
 
-    expect(gain().events).toEqual([
+    // The keying from elsewhere has a gain of its own, on the same audio output as the key
+    expect(AudioContextMock.instances).toHaveLength(1);
+    expect(gain().events).toEqual([]);
+    expect(context().gains[1].gain.events).toEqual([
       { type: "setTarget", value: TONE_GAIN, time: 2.15 },
       { type: "setTarget", value: 0, time: 2 }
     ]);

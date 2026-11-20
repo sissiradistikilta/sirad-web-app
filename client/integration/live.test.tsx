@@ -22,7 +22,7 @@ describe("live keying between frontends", () => {
 
   /** A user in the Live mode: a connection to the backend and the keying on a frequency. */
   const openClient = (frequency: number | null = FREQUENCY) => {
-    // Each client makes two tones: of its own key and of the keying of the others
+    // Each client has an audio output of its own
     const first = AudioContextMock.instances.length;
     const hook = renderHook(
       (props) => {
@@ -40,7 +40,7 @@ describe("live keying between frontends", () => {
         return hook.result.current.api.connected;
       },
       /** The keying of the others as the client plays it: the levels of the tone and their times in seconds. */
-      heard: () => AudioContextMock.instances[first + 1].gains[0].gain.events,
+      heard: () => AudioContextMock.instances[first].gains[1].gain.events,
       keyDown: (t: number) => act(() => hook.result.current.live.keyDown(t)),
       keyUp: (t: number) => act(() => hook.result.current.live.keyUp(t))
     };

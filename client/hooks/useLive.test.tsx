@@ -6,7 +6,7 @@ import { ApiMessage } from "../api/connection";
 import { TONE_GAIN } from "../audio/MorsePlayer";
 
 import { Api } from "./useApiConnection";
-import useLive, { PLAYOUT_DELAY } from "./useLive";
+import useLive, { PLAYOUT_DELAY, TRANSMIT_HOLD } from "./useLive";
 
 const FREQUENCY = 3685000;
 
@@ -22,8 +22,8 @@ describe("useLive", () => {
   const receive = (message: ApiMessage) => act(() => listeners.forEach((listener) => listener(message)));
   const channel = (holder: "self" | "other" | null, users = 2, frequency = FREQUENCY) =>
     receive({ type: "channel", frequency, users, holder });
-  /** The automation of the tone of the given AudioContext: the first is of the own key, the second of the others. */
-  const tone = (index: number) => AudioContextMock.instances[index].gains[0].gain.events;
+  /** The automation of a tone: the first is of the own key, the second of the keying of the others. */
+  const tone = (index: number) => AudioContextMock.instances[0].gains[index].gain.events;
 
   beforeEach(() => {
     AudioContextMock.instances = [];
@@ -86,7 +86,7 @@ describe("useLive", () => {
     ]);
     expect(tone(0).map(({ value }) => value)).toEqual([TONE_GAIN, 0]);
 
-    // The frequency stays with the user for a moment after the key was released
+    // The transmission stays on for a moment after the key was released
     channel("self");
     expect(hook.result.current.transmitting).toBe(true);
     expect(hook.result.current.receiving).toBe(false);
@@ -128,7 +128,7 @@ describe("useLive", () => {
     // The audio starts
     await act(async () => undefined);
     channel("other");
-    const context = AudioContextMock.instances[1];
+    const context = AudioContextMock.instances[0];
 
     context.currentTime = 10;
     receive({ type: "key", down: true, t: 5000 });
@@ -148,7 +148,7 @@ describe("useLive", () => {
   it("times each transmission by its own clock, and lets the key go right away when the server says so", async () => {
     render();
     await act(async () => undefined);
-    const context = AudioContextMock.instances[1];
+    const context = AudioContextMock.instances[0];
 
     channel("other");
     context.currentTime = 10;
@@ -190,5 +190,51 @@ describe("useLive", () => {
     receive({ type: "key", down: "yes", t: 1 });
     receive({ type: "other" });
     expect(hook.result.current.channel).toEqual({ frequency: FREQUENCY, users: 2, holder: "other" });
+  });
+
+  it("shows the transmission from the first press until half a second after the last release", () => {
+    vi.useFakeTimers();
+    const hook = render();
+    channel(null);
+    expect(hook.result.current.transmitting).toBe(false);
+
+    // On right away, without waiting for the backend to tell that the user has the frequency
+    act(() => hook.result.current.keyDown(1000));
+    expect(hook.result.current.transmitting).toBe(true);
+    act(() => hook.result.current.keyUp(1100));
+    expect(hook.result.current.transmitting).toBe(true);
+
+    // A new press before the half a second has passed keeps it on
+    act(() => {
+      vi.advanceTimersByTime(TRANSMIT_HOLD - 1);
+    });
+    act(() => hook.result.current.keyDown(1600));
+    act(() => {
+      vi.advanceTimersByTime(TRANSMIT_HOLD * 2);
+    });
+    expect(hook.result.current.transmitting).toBe(true);
+
+    act(() => hook.result.current.keyUp(2700));
+    act(() => {
+      vi.advanceTimersByTime(TRANSMIT_HOLD - 1);
+    });
+    expect(hook.result.current.transmitting).toBe(true);
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(hook.result.current.transmitting).toBe(false);
+    vi.useRealTimers();
+  });
+
+  it("ends the transmission right away when someone else has the frequency", () => {
+    const hook = render();
+    channel(null);
+    act(() => hook.result.current.keyDown(1000));
+    act(() => hook.result.current.keyUp(1100));
+    expect(hook.result.current.transmitting).toBe(true);
+
+    channel("other");
+    expect(hook.result.current.transmitting).toBe(false);
+    expect(hook.result.current.receiving).toBe(true);
   });
 });

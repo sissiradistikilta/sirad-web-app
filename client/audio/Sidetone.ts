@@ -13,11 +13,17 @@ export const KEYING_TIME_CONSTANT = 0.0017;
  * oscillator runs all the time and the key moves the gain towards the level of the tone or
  * towards silence. The gain starts from whatever it is at that moment, so the tone does not
  * click even if the key is released in the middle of the attack.
+ *
+ * The same audio output also plays keying that comes from elsewhere (keyAt), with a gain of its own.
+ * One AudioContext is enough for both: a second one would be a second audio stream for the device to
+ * mix, and on some devices that adds delay to the tone of the key.
  */
 class Sidetone {
   private context: AudioContext | null = null;
   private oscillator: OscillatorNode | null = null;
   private gain: GainNode | null = null;
+  /** The gain of the keying that comes from elsewhere. */
+  private scheduled: GainNode | null = null;
 
   /**
    * Starts the audio. Must be called from a user interaction (e.g. a press of the key),
@@ -28,13 +34,17 @@ class Sidetone {
       this.context = new window.AudioContext();
       this.oscillator = this.context.createOscillator();
       this.gain = this.context.createGain();
+      this.scheduled = this.context.createGain();
 
       this.oscillator.type = "sine";
       this.oscillator.frequency.value = TONE_FREQUENCY;
       this.gain.gain.value = 0;
+      this.scheduled.gain.value = 0;
 
       this.oscillator.connect(this.gain);
       this.gain.connect(this.context.destination);
+      this.oscillator.connect(this.scheduled);
+      this.scheduled.connect(this.context.destination);
       this.oscillator.start();
     }
 
@@ -62,8 +72,8 @@ class Sidetone {
    * from elsewhere and is played a moment late, to keep its rhythm regardless of when it arrives.
    */
   keyAt(down: boolean, time: number) {
-    if (!this.context || !this.gain) return;
-    this.gain.gain.setTargetAtTime(
+    if (!this.context || !this.scheduled) return;
+    this.scheduled.gain.setTargetAtTime(
       down ? TONE_GAIN : 0,
       Math.max(time, this.context.currentTime),
       KEYING_TIME_CONSTANT
@@ -76,6 +86,7 @@ class Sidetone {
     this.context = null;
     this.oscillator = null;
     this.gain = null;
+    this.scheduled = null;
 
     if (context && context.state !== "closed") {
       context.close().catch(() => undefined);
