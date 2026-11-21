@@ -80,15 +80,30 @@ describe("App", () => {
     expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "0");
     expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuemax", "25");
 
-    // The start of the message (= = =) takes 52 units of 60 / (9 * 60) seconds before the first group
-    act(() => advance(0.1 + (52 * 60) / (9 * 60) + 0.1));
+    // The start of the message (= = =) takes 52 units of 6 / 60 seconds before the first group
+    act(() => advance(0.1 + (52 * 6) / 60 + 0.1));
     expect(screen.getByText("Toistetaan ryhmää 1 / 25")).toBeInTheDocument();
     expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "1");
   });
 
+  it.each([
+    ["standard", 0.3],
+    ["classic", 1 / 3]
+  ])("uses %s timing for audio playback", async (timingMode, dash) => {
+    render(<App />);
+    const selector = screen.getByLabelText("Ajoitus");
+    expect(selector).toHaveValue("standard");
+    if (timingMode === "classic") fireEvent.change(selector, { target: { value: timingMode } });
+
+    await play();
+
+    const [attack, , release] = AudioContextMock.instances[0].gains[0].gain.events;
+    expect(release.time - attack.time).toBeCloseTo(dash, 9);
+  });
+
   it("disables every setting during the playback", async () => {
     render(<App />);
-    expect(screen.getAllByRole("combobox")).toHaveLength(5);
+    expect(screen.getAllByRole("combobox")).toHaveLength(6);
     await play();
 
     screen.getAllByRole("combobox").forEach((select) => expect(select).toBeDisabled());
@@ -117,7 +132,7 @@ describe("App", () => {
   });
 
   describe("practice mode", () => {
-    const UNIT = 60 / (9 * 60);
+    const UNIT = 6 / 60;
     const classes = (selector: string) =>
       Array.from(document.querySelectorAll(selector), (element) => element.className);
 
@@ -333,8 +348,8 @@ describe("App", () => {
     await play();
 
     expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuemax", "50");
-    // The start of the message takes 52 units of 60 / (9 * 100) seconds at this speed
-    act(() => advance(0.1 + (52 * 60) / (9 * 100) + 0.1));
+    // The start of the message takes 52 units of 6 / 100 seconds at this speed
+    act(() => advance(0.1 + (52 * 6) / 100 + 0.1));
     expect(screen.getByText("Toistetaan ryhmää 1 / 50")).toBeInTheDocument();
     // Only numbers were asked for
     const groups = Array.from(document.querySelectorAll(".Results-group"), (group) => group.textContent ?? "");

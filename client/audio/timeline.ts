@@ -2,6 +2,8 @@ import { MORSE_CODES_MAP } from "../constants";
 import { MorseCharacter } from "../types";
 import { getDotLength } from "../utils";
 
+export type TimingMode = "standard" | "classic";
+
 /** All durations are in seconds, the unit of the Web Audio clock. */
 export interface MorseTiming {
   /** Length of a dot and of the gap between the elements of a character. A dash is three units. */
@@ -51,12 +53,17 @@ const END_OF_WORK: MorseCharacter[] = ["V", "A"];
  * character speed, the 19 units are stretched so that the word takes as long as it would
  * at the effective speed.
  */
-export function getMorseTiming(characterSpeed: number, effectiveSpeed = 0): MorseTiming {
-  const unit = getDotLength(characterSpeed) / 1000;
+export function getMorseTiming(
+  characterSpeed: number,
+  effectiveSpeed = 0,
+  timingMode: TimingMode = "standard"
+): MorseTiming {
+  const dotLength = timingMode === "classic" ? getDotLength : (speed: number) => 6000 / speed;
+  const unit = dotLength(characterSpeed) / 1000;
   let gapUnit = unit;
 
   if (effectiveSpeed > 0 && effectiveSpeed < characterSpeed) {
-    const effectiveUnit = getDotLength(effectiveSpeed) / 1000;
+    const effectiveUnit = dotLength(effectiveSpeed) / 1000;
     gapUnit = (50 * effectiveUnit - 31 * unit) / 19;
   }
 
@@ -105,7 +112,8 @@ const toPattern = (character: MorseCharacter) => MORSE_CODES_MAP.get(character) 
 export function buildMessageTimeline(
   groups: MorseCharacter[][],
   characterSpeed: number,
-  effectiveSpeed = 0
+  effectiveSpeed = 0,
+  timingMode: TimingMode = "standard"
 ): MessageTimeline {
   const words = [
     START_OF_MESSAGE.map(toPattern),
@@ -113,7 +121,7 @@ export function buildMessageTimeline(
     END_OF_MESSAGE.map(toPattern),
     [END_OF_WORK.map(toPattern).join("")]
   ];
-  const timeline = buildTimeline(words, getMorseTiming(characterSpeed, effectiveSpeed));
+  const timeline = buildTimeline(words, getMorseTiming(characterSpeed, effectiveSpeed, timingMode));
 
   const characters = groups.reduce((sum, group) => sum + group.length, 0);
 
