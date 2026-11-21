@@ -1,11 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { buildMessageTimeline, MorsePlayer } from "../audio";
+import { buildMessageTimeline, MorsePlayer, TimingMode } from "../audio";
 import { MorseCharacter } from "../types";
 
 import useLetterChunks from "./useLetterChunks";
 
-const usePlayer = (characterSpeed: number, effectiveSpeed: number, message: MorseCharacter[]) => {
+const usePlayer = (
+  characterSpeed: number,
+  effectiveSpeed: number,
+  message: MorseCharacter[],
+  timingMode?: TimingMode
+) => {
   // The player, and its AudioContext, is created when the playback is started for the first time
   const player = useRef<MorsePlayer | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -43,7 +48,7 @@ const usePlayer = (characterSpeed: number, effectiveSpeed: number, message: Mors
       setCurrentCharacter(0);
 
       player.current.start(
-        buildMessageTimeline(Array.isArray(groups) ? groups : letterChunks, characterSpeed, effectiveSpeed),
+        buildMessageTimeline(Array.isArray(groups) ? groups : letterChunks, characterSpeed, effectiveSpeed, timingMode),
         {
           onGroupChange: setCurrentGroup,
           onCharacterChange: setCurrentCharacter,
@@ -58,7 +63,7 @@ const usePlayer = (characterSpeed: number, effectiveSpeed: number, message: Mors
         }
       );
     },
-    [letterChunks, characterSpeed, effectiveSpeed]
+    [letterChunks, characterSpeed, effectiveSpeed, timingMode]
   );
 
   return {
