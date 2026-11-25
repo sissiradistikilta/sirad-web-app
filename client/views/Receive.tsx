@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { markAnswer, parseAnswer } from "../answer";
+import type { TimingMode } from "../audio";
 import { AnswerInput, Button, Options, Results, Select } from "../components";
 import { LENGTHS, CHARACTER_SETS, RECEIVE_MODES, SPEEDS } from "../constants";
 import { usePlayer } from "../hooks";
@@ -13,6 +14,7 @@ import "./Receive.css";
 function Receive() {
   const [characterSpeed, setCharacterSpeed] = useState(60);
   const [effectiveSpeed, setEffectiveSpeed] = useState(0);
+  const [timingMode, setTimingMode] = useState<TimingMode>("standard");
   const [characters, setCharacters] = useState(CHARACTER_SETS[0].value);
   const [length, setLength] = useState(125);
   // An exam is the default: the message must not be shown by accident
@@ -24,7 +26,8 @@ function Receive() {
   const { currentCharacter, currentGroup, numGroups, playing, startPlayback, stopPlayback, stopped } = usePlayer(
     characterSpeed,
     effectiveSpeed,
-    message
+    message,
+    timingMode
   );
 
   // An exam on a keyboard: the answer is the text of a text field, written during and after the playback
@@ -140,6 +143,17 @@ function Receive() {
           onChange={(value) => setMode(value)}
           options={RECEIVE_MODES}
           selected={mode}
+        />
+        <Select
+          disabled={busy}
+          id="timingMode"
+          title="Ajoitus"
+          onChange={(value) => setTimingMode(value === "classic" ? "classic" : "standard")}
+          options={[
+            { label: "Standard", value: "standard" },
+            { label: "Classic", value: "classic" }
+          ]}
+          selected={timingMode}
         />
       </Options>
       <div className="App-buttons">

@@ -126,9 +126,9 @@ describe("usePlayer", () => {
     await start(hook);
     act(() => advance(1));
 
-    // "=" starts with a dash, three units of 60 / (9 * 40) seconds
+    // "=" starts with a dash, three units of 6 / 40 seconds
     const [attack, , release] = context().gains[0].gain.events;
-    expect(release.time - attack.time).toBeCloseTo((3 * 60) / (9 * 40), 9);
+    expect(release.time - attack.time).toBeCloseTo((3 * 6) / 40, 9);
   });
 
   it("is no longer stopped when the message changes", async () => {
@@ -164,7 +164,7 @@ describe("usePlayer", () => {
     expect(context().gains[0].gain.events).toHaveLength((15 + 1 + 5 + 6) * 4);
     // The tone after the start of the message is the message: a dash for T
     const [attack, , release] = context().gains[0].gain.events.slice(15 * 4);
-    expect(release.time - attack.time).toBeCloseTo((3 * 60) / (9 * 160), 9);
+    expect(release.time - attack.time).toBeCloseTo((3 * 6) / 160, 9);
   });
 
   it("is not playing when the audio cannot be started", async () => {

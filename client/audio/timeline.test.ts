@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import { SPEEDS } from "../constants";
-import { getDotLength } from "../utils";
 
 import { buildMessageTimeline, buildTimeline, getMorseTiming, Timeline } from "./timeline";
 
@@ -15,9 +14,18 @@ const toUnits = (timeline: Timeline, unit = 1) =>
   });
 
 describe("getMorseTiming", () => {
+  it.each([
+    { mode: "standard" as const, dotMs: 100 },
+    { mode: "classic" as const, dotMs: 60000 / (9 * 60) }
+  ])("uses a $dotMs ms dot at 60 CPM in $mode mode", ({ mode, dotMs }) => {
+    const timing = getMorseTiming(60, 0, mode);
+    expect(timing.unit * 1000).toBeCloseTo(dotMs, 9);
+    expect(toUnits(buildTimeline([[".-", "."], ["-"]], timing), timing.unit)).toEqual([1, -1, 3, -3, 1, -7, 3]);
+  });
+
   it("uses the standard 1, 3 and 7 unit gaps", () => {
     for (const speed of SPEEDS) {
-      const unit = getDotLength(speed) / 1000;
+      const unit = 6 / speed;
       for (const effectiveSpeed of [0, speed, speed + 20]) {
         const timing = getMorseTiming(speed, effectiveSpeed);
         expect(timing.unit).toBeCloseTo(unit, 12);
@@ -29,7 +37,7 @@ describe("getMorseTiming", () => {
   });
 
   it("keeps the elements at the character speed with Farnsworth timing", () => {
-    expect(getMorseTiming(120, 60).unit).toBeCloseTo(getDotLength(120) / 1000, 12);
+    expect(getMorseTiming(120, 60).unit).toBeCloseTo(6 / 120, 12);
   });
 
   it("stretches the character and word gaps in the ratio 3:7 with Farnsworth timing", () => {
@@ -39,7 +47,10 @@ describe("getMorseTiming", () => {
     expect(farnsworth.wordGap / farnsworth.characterGap).toBeCloseTo(7 / 3, 12);
   });
 
-  it("reaches the effective speed with Farnsworth timing", () => {
+  it.each([
+    ["standard", 6],
+    ["classic", 60 / 9]
+  ] as const)("reaches the effective speed with Farnsworth timing in %s mode", (mode, unitAtOneCpm) => {
     // PARIS followed by a word gap is 50 units long at the standard timing
     const paris = [[".--.", ".-", ".-.", "..", "..."]];
     for (const [characterSpeed, effectiveSpeed] of [
@@ -48,9 +59,9 @@ describe("getMorseTiming", () => {
       [160, 40],
       [160, 140]
     ]) {
-      const timing = getMorseTiming(characterSpeed, effectiveSpeed);
+      const timing = getMorseTiming(characterSpeed, effectiveSpeed, mode);
       const duration = buildTimeline(paris, timing).duration + timing.wordGap;
-      expect(duration).toBeCloseTo((50 * getDotLength(effectiveSpeed)) / 1000, 9);
+      expect(duration).toBeCloseTo((50 * unitAtOneCpm) / effectiveSpeed, 9);
     }
   });
 });
@@ -96,7 +107,7 @@ describe("buildTimeline", () => {
 });
 
 describe("buildMessageTimeline", () => {
-  const unit = getDotLength(60) / 1000;
+  const unit = 6 / 60;
 
   it("frames the message with = = = and + VA", () => {
     const timeline = buildMessageTimeline([["E"]], 60);
@@ -139,15 +150,18 @@ describe("buildMessageTimeline", () => {
     expect(timeline.messageCharacterStarts[0]).toBe(timeline.groupStarts[0]);
   });
 
-  it("only stretches the gaps between characters and groups with Farnsworth timing", () => {
-    const unit = getDotLength(120) / 1000;
-    const standard = toUnits(buildMessageTimeline([["A", "B"], ["C"]], 120), unit);
-    const farnsworth = toUnits(buildMessageTimeline([["A", "B"], ["C"]], 120, 60), unit);
-    const { characterGap, wordGap } = getMorseTiming(120, 60);
-    const scale = (gap: number) => Math.round((gap / unit) * 1000) / 1000;
+  it.each(["standard", "classic"] as const)(
+    "only stretches the outer gaps with Farnsworth timing in %s mode",
+    (mode) => {
+      const groups: Parameters<typeof buildMessageTimeline>[0] = [["A", "B"], ["C"]];
+      const { unit, characterGap, wordGap } = getMorseTiming(120, 60, mode);
+      const base = toUnits(buildMessageTimeline(groups, 120, 0, mode), unit);
+      const farnsworth = toUnits(buildMessageTimeline(groups, 120, 60, mode), unit);
+      const scale = (gap: number) => Math.round((gap / unit) * 1000) / 1000;
 
-    expect(farnsworth).toEqual(
-      standard.map((length) => (length === -3 ? -scale(characterGap) : length === -7 ? -scale(wordGap) : length))
-    );
-  });
+      expect(farnsworth).toEqual(
+        base.map((length) => (length === -3 ? -scale(characterGap) : length === -7 ? -scale(wordGap) : length))
+      );
+    }
+  );
 });
